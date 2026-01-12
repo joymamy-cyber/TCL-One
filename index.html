@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <title>TCL Executive Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <style>
+        :root {
+            --primary-color: #F05A28; /* สีส้ม บขส. */
+            --primary-light: #fff0e6;
+            --secondary-color: #0056b3; /* สีน้ำเงินเข้ม */
+            --bg-body: #f8f9fa;
+            --nav-height: 75px;
+            --glass-bg: rgba(255, 255, 255, 0.9);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.5);
+            --shadow-soft: 0 8px 30px rgba(0,0,0,0.04);
+        }
+
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: var(--bg-body);
+            color: #333;
+            padding-bottom: calc(var(--nav-height) + 20px);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* HEADER */
+        .app-header {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, #003d80 100%);
+            color: white;
+            padding: 15px 20px 25px 20px;
+            border-bottom-left-radius: 25px;
+            border-bottom-right-radius: 25px;
+            box-shadow: 0 4px 15px rgba(0,86,179,0.3);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        /* CARDS & GLASSMORPHISM */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 20px;
+            border: var(--glass-border);
+            box-shadow: var(--shadow-soft);
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: transform 0.2s;
+        }
+        
+        /* KPI BOXES */
+        .kpi-box {
+            background: white;
+            border-radius: 16px;
+            padding: 15px;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+            border-left: 5px solid transparent;
+        }
+        .kpi-label { font-size: 0.85rem; color: #6c757d; font-weight: 500; }
+        .kpi-value { font-size: 1.4rem; font-weight: 700; margin-top: 5px; color: #212529; }
+        
+        /* NAVIGATION */
+        .bottom-nav {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 400px;
+            height: 65px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 35px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 1050;
+            padding: 0 10px;
+        }
+        .nav-item {
+            text-align: center;
+            color: #adb5bd;
+            font-size: 0.75rem;
+            width: 60px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+        .nav-item i { font-size: 1.5rem; display: block; margin-bottom: 2px; transition: 0.3s; }
+        .nav-item.active { color: var(--primary-color); }
+        .nav-item.active i { transform: translateY(-3px); }
+
+        /* LOADING */
+        #loader-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.98);
+            z-index: 9999;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+        }
+        .custom-spinner {
+            width: 50px; height: 50px;
+            border: 5px solid var(--primary-light);
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* UTILS */
+        .text-tcl { color: var(--primary-color); }
+        .bg-tcl-light { background-color: var(--primary-light); }
+        .chart-container { position: relative; height: 250px; width: 100%; }
+        .table-custom th { font-size: 0.8rem; font-weight: 600; color: #888; text-transform: uppercase; background: transparent; border-bottom: 2px solid #eee; }
+        .table-custom td { padding: 12px 5px; vertical-align: middle; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; }
+        
+        /* Filter Pills */
+        .nav-pills .nav-link {
+            border-radius: 20px; color: #666; font-size: 0.85rem; padding: 6px 15px; background: white; border: 1px solid #eee;
+        }
+        .nav-pills .nav-link.active {
+            background-color: var(--secondary-color); color: white; border-color: var(--secondary-color); box-shadow: 0 4px 10px rgba(0,86,179,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader-overlay">
+        <div class="custom-spinner mb-3"></div>
+        <div class="fw-bold text-secondary">กำลังดึงข้อมูล...</div>
+        <div class="small text-muted mt-1">บขส. Performance Dashboard</div>
+    </div>
+
+    <div class="app-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="m-0 fw-bold"><i class="bi bi-bus-front me-2"></i>Executive View</h5>
+                <span class="small opacity-75" id="header-date">...</span>
+            </div>
+            <button class="btn btn-light btn-sm rounded-circle shadow-sm" style="width:35px;height:35px" onclick="filterModal.show()">
+                <i class="bi bi-sliders text-primary"></i>
+            </button>
+        </div>
+        <div class="d-flex mt-3 gap-2 overflow-auto pb-1" id="filter-badges" style="scrollbar-width:none;">
+            </div>
+    </div>
+
+    <div class="container-fluid px-3 pt-3">
+        
+        <div id="view-overview" class="view-section">
+            
+            <div class="d-flex gap-2 mb-3 overflow-auto pb-1">
+                 <select id="local-div" class="form-select form-select-sm border-0 shadow-sm rounded-pill" style="min-width:120px;" onchange="applyLocalOverviewFilter()">
+                    <option value="All">ทุกภาค/กอง</option>
+                 </select>
+                 <div class="nav nav-pills flex-nowrap" id="type-pills">
+                    <button class="nav-link active ms-1" onclick="setOverviewType('All', this)">ทั้งหมด</button>
+                    <button class="nav-link ms-1" onclick="setOverviewType('ค่าโดยสาร', this)">โดยสาร</button>
+                    <button class="nav-link ms-1" onclick="setOverviewType('ค่าพัสดุ', this)">พัสดุ</button>
+                 </div>
+            </div>
+
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <div class="kpi-box" style="border-left-color: var(--secondary-color);">
+                        <div class="kpi-label">รายได้จริง</div>
+                        <div class="kpi-value text-primary" id="kpi-rev">0</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="kpi-box" style="border-left-color: #ffc107;">
+                        <div class="kpi-label">เป้าหมาย</div>
+                        <div class="kpi-value text-warning" id="kpi-target">0</div>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="kpi-box d-flex justify-content-between align-items-center" id="kpi-card-diff" style="border-left-color: #ddd;">
+                        <div>
+                            <div class="kpi-label">ส่วนต่างเป้าหมาย</div>
+                            <div class="kpi-value" id="kpi-diff">0</div>
+                        </div>
+                        <div class="text-end">
+                            <h2 class="m-0 fw-bold" id="kpi-pct">0%</h2>
+                            <span class="badge bg-light text-dark border">Achieved</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <h6 class="fw-bold mb-3 text-secondary"><i class="bi bi-graph-up-arrow me-2"></i>แนวโน้มรายวัน</h6>
+                <div class="chart-container">
+                    <canvas id="chart-trend"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-card p-0 overflow-hidden">
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light bg-opacity-50">
+                    <h6 class="m-0 fw-bold text-secondary">Top Performance</h6>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary py-0" onclick="toggleRank('top')">High</button>
+                        <button class="btn btn-outline-secondary py-0" onclick="toggleRank('low')">Low</button>
+                    </div>
+                </div>
+                <div class="p-2 chart-container" style="height:350px">
+                    <canvas id="chart-rank"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-compare" class="view-section" style="display:none">
+            <h5 class="fw-bold text-secondary mb-3 ps-2">เปรียบเทียบย้อนหลัง</h5>
+            <div class="glass-card">
+                <div class="row g-2 mb-3">
+                    <div class="col-6"><label class="small text-muted">ภาค</label><select id="cp-div" class="form-select form-select-sm rounded-3"><option value="All">ทั้งหมด</option></select></div>
+                    <div class="col-6"><label class="small text-muted">วันย้อนหลัง</label><select id="cp-days" class="form-select form-select-sm rounded-3"><option value="7">7 วัน</option><option value="15">15 วัน</option><option value="30">30 วัน</option></select></div>
+                    <div class="col-12"><button class="btn btn-primary w-100 rounded-pill shadow-sm" onclick="loadCompare()">ประมวลผล</button></div>
+                </div>
+                <div id="compare-chart-box" style="display:none">
+                    <div class="chart-container" style="height:400px">
+                        <canvas id="chart-compare"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-detail" class="view-section" style="display:none">
+             <h5 class="fw-bold text-secondary mb-3 ps-2">ค้นหาเจาะลึก</h5>
+             <div class="glass-card">
+                 <div class="row g-2">
+                     <div class="col-12"><label class="small text-muted">สถานี</label><select id="dt-station" class="form-select form-select-sm rounded-3"></select></div>
+                     <div class="col-6"><input type="date" id="dt-start" class="form-control form-control-sm rounded-3"></div>
+                     <div class="col-6"><input type="date" id="dt-end" class="form-control form-control-sm rounded-3"></div>
+                     <div class="col-12 mt-2"><button class="btn btn-info text-white w-100 rounded-pill" onclick="loadDetail()">ค้นหา</button></div>
+                 </div>
+             </div>
+             <div id="detail-result" class="glass-card p-0" style="display:none">
+                 <div class="table-responsive">
+                     <table class="table table-custom table-hover mb-0 w-100">
+                         <tbody id="dt-tbody"></tbody>
+                     </table>
+                 </div>
+             </div>
+        </div>
+
+    </div>
+
+    <div class="offcanvas offcanvas-bottom rounded-top-4 h-auto" tabindex="-1" id="filterOffcanvas">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title fw-bold">เลือกช่วงข้อมูล (เดือน/ปี)</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body pb-4">
+             <div class="row g-3">
+                 <div class="col-6"><label class="form-label small text-muted">ปี</label><select id="ov-year" class="form-select"></select></div>
+                 <div class="col-6"><label class="form-label small text-muted">เดือน</label><select id="ov-month" class="form-select"></select></div>
+                 <div class="col-12"><button class="btn btn-primary w-100 py-2 rounded-3" onclick="reloadOverviewData()">โหลดข้อมูลใหม่</button></div>
+             </div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('overview', this)">
+            <i class="bi bi-grid-fill"></i><span>ภาพรวม</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('compare', this)">
+            <i class="bi bi-bar-chart-line-fill"></i><span>เทียบ</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('detail', this)">
+            <i class="bi bi-search"></i><span>ค้นหา</span>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script>
+        // --- CONFIG ---
+        // ใส่ URL ที่ได้จากการ Deploy Web App (Part 1) ตรงนี้
+        const API_URL = "https://script.google.com/macros/s/AKfycbz......(URL ของคุณ)....../exec"; 
+        // ใส่รหัสเดียวกับในไฟล์ GAS
+        const API_KEY = "TCL_SECURE_2026_PHANGNGA"; 
+
+        // --- GLOBAL VARS ---
+        let filterModal;
+        let fullMeta = [], overviewCache = [];
+        let currentOvType = 'All';
+        let charts = {};
+
+        // --- INIT ---
+        window.onload = async function() {
+            filterModal = new bootstrap.Offcanvas('#filterOffcanvas');
+            
+            // Set Header Date
+            const d = new Date();
+            const thMonth = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+            document.getElementById('header-date').innerText = `${d.getDate()} ${thMonth[d.getMonth()]} ${d.getFullYear()+543}`;
+            
+            // Initial Data
+            await loadMetadata();
+        };
+
+        async function fetchData(func, params = {}) {
+            const url = new URL(API_URL);
+            url.searchParams.append('key', API_KEY);
+            url.searchParams.append('func', func);
+            
+            // Append other params
+            for (const key in params) {
+                if (typeof params[key] === 'object') {
+                    url.searchParams.append(key, JSON.stringify(params[key]));
+                } else {
+                    url.searchParams.append(key, params[key]);
+                }
+            }
+
+            try {
+                const res = await fetch(url);
+                const json = await res.json();
+                if(json.status === 'error') throw new Error(json.message);
+                return json;
+            } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Connection Error', text: err.message });
+                return null;
+            }
+        }
+
+        async function loadMetadata() {
+            const data = await fetchData('getMetadata');
+            if (!data) return;
+            
+            fullMeta = data.meta;
+            
+            // Populate Selects
+            fillSelect('cp-div', data.divisions);
+            let stationList = [...new Set(fullMeta.map(m=>m.s))].sort();
+            fillSelect('dt-station', stationList);
+
+            let localDiv = document.getElementById('local-div');
+            data.divisions.forEach(d => { let opt = document.createElement('option'); opt.value=d; opt.text=d; localDiv.add(opt); });
+
+            let years = new Set(fullMeta.map(m=>m.y));
+            let months = new Set(fullMeta.map(m=>m.m));
+            fillSelect('ov-year', Array.from(years), new Date().getFullYear());
+            fillSelect('ov-month', Array.from(months), new Date().getMonth() + 1);
+
+            reloadOverviewData();
+        }
+
+        async function reloadOverviewData() {
+            document.getElementById('loader-overlay').style.display = 'flex';
+            filterModal.hide();
+            
+            const criteria = { 
+                group: 'Station', division: 'All', 
+                year: document.getElementById('ov-year').value, 
+                month: document.getElementById('ov-month').value, 
+                station: 'All' 
+            };
+            
+            const data = await fetchData('getOverviewData', { criteria: criteria });
+            if (data) {
+                overviewCache = data;
+                applyLocalOverviewFilter();
+            }
+            document.getElementById('loader-overlay').style.display = 'none';
+        }
+
+        function applyLocalOverviewFilter() {
+            const fDiv = document.getElementById('local-div').value;
+            // For logic simplicity, we filter memory cache based on Division mapping
+            let filtered = overviewCache.filter(r => {
+                let meta = fullMeta.find(m => m.s === r.station);
+                let rowDiv = meta ? meta.d : 'Unknown';
+                return (fDiv === 'All') || (rowDiv === fDiv);
+            });
+            updateOverviewUI(filtered);
+        }
+
+        function setOverviewType(type, btn) {
+            currentOvType = type;
+            document.querySelectorAll('#type-pills .nav-link').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            applyLocalOverviewFilter();
+        }
+
+        function updateOverviewUI(data) {
+            let finalData = data.filter(r => currentOvType === 'All' || r.revType.includes(currentOvType));
+            
+            let rev=0, target=0;
+            finalData.forEach(r => { rev+=r.revenue; target+=r.target; });
+            let diff = rev - target;
+            let pct = target>0 ? ((diff/target)*100) : 0;
+
+            animateValue('kpi-rev', rev);
+            animateValue('kpi-target', target);
+            
+            let diffEl = document.getElementById('kpi-diff');
+            let pctEl = document.getElementById('kpi-pct');
+            let cardEl = document.getElementById('kpi-card-diff');
+            
+            diffEl.innerText = formatCurrency(diff);
+            pctEl.innerText = (diff>=0?'+':'') + pct.toFixed(1) + '%';
+            
+            if(diff >= 0) {
+                cardEl.style.borderLeftColor = '#2ecc71'; diffEl.style.color = '#2ecc71'; pctEl.className = 'm-0 fw-bold text-success';
+            } else {
+                cardEl.style.borderLeftColor = '#e74c3c'; diffEl.style.color = '#e74c3c'; pctEl.className = 'm-0 fw-bold text-danger';
+            }
+
+            renderTrend(finalData);
+            toggleRank('top', finalData);
+        }
+
+        function renderTrend(data) {
+            let daily = {}; data.forEach(r => daily[r.day] = (daily[r.day]||0)+r.revenue);
+            let labels = Object.keys(daily).sort((a,b)=>a-b);
+            let ctx = document.getElementById('chart-trend').getContext('2d');
+            
+            if(charts.trend) charts.trend.destroy();
+            
+            // Gradient Fill
+            let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(13, 110, 253, 0.5)');   
+            gradient.addColorStop(1, 'rgba(13, 110, 253, 0.0)');
+
+            charts.trend = new Chart(ctx, { 
+                type: 'line', 
+                data: { 
+                    labels: labels, 
+                    datasets:[{ 
+                        label:'รายได้', data: labels.map(x=>daily[x]), 
+                        borderColor:'#0056b3', backgroundColor: gradient, 
+                        fill:true, tension:0.4, pointRadius:3 
+                    }] 
+                }, 
+                options: { 
+                    responsive:true, maintainAspectRatio:false, 
+                    plugins:{legend:{display:false}}, 
+                    scales:{x:{grid:{display:false}}, y:{ticks:{callback:v=>v/1000+'k'}}} 
+                } 
+            });
+        }
+
+        function toggleRank(mode, dataOverride) {
+            let src = dataOverride || overviewCache.filter(r => currentOvType === 'All' || r.revType.includes(currentOvType));
+            let stats = {}; src.forEach(r => { 
+                let clean = r.station.replace('สถานีเดินรถ','').replace('สถานี','').trim();
+                if(!stats[clean]) stats[clean] = 0; 
+                stats[clean] += r.revenue; 
+            });
+            
+            let items = Object.entries(stats).map(([k,v]) => ({name:k, rev:v}));
+            items.sort((a,b) => mode==='top' ? b.rev-a.rev : a.rev-b.rev);
+            items = items.slice(0, 10); // Show top 10
+
+            let ctx = document.getElementById('chart-rank').getContext('2d');
+            if(charts.rank) charts.rank.destroy();
+            
+            charts.rank = new Chart(ctx, { 
+                type: 'bar', 
+                data: { labels: items.map(x=>x.name), datasets:[{ label:'Revenue', data: items.map(x=>x.rev), backgroundColor: mode==='top'?'#F05A28':'#dc3545', borderRadius:6 }] }, 
+                options: { 
+                    indexAxis: 'y', responsive:true, maintainAspectRatio:false, 
+                    plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}, ticks:{callback:v=>v/1000+'k'}}} 
+                } 
+            });
+        }
+
+        // --- COMPARE & DETAIL ---
+        async function loadCompare() {
+            document.getElementById('loader-overlay').style.display = 'flex';
+            const criteria = { group: 'Station', division: document.getElementById('cp-div').value, type: 'All' };
+            const days = document.getElementById('cp-days').value;
+            
+            const data = await fetchData('getCompareData', { days: days, criteria: criteria });
+            document.getElementById('loader-overlay').style.display = 'none';
+
+            if(data) {
+                document.getElementById('compare-chart-box').style.display='block';
+                let ctx = document.getElementById('chart-compare').getContext('2d');
+                if(charts.compare) charts.compare.destroy();
+                charts.compare = new Chart(ctx, { 
+                    type: 'bar', 
+                    data: { 
+                        labels: data.slice(0,15).map(x=>x.station.replace('สถานีเดินรถ','').trim()), 
+                        datasets: [ 
+                            { label: 'Rev', data: data.slice(0,15).map(x=>x.revenue), backgroundColor: '#0056b3', borderRadius:4 }, 
+                            { label: 'Target', data: data.slice(0,15).map(x=>x.target), type: 'line', borderColor: '#ffc107', borderWidth: 2, pointRadius:0 } 
+                        ] 
+                    }, 
+                    options: { indexAxis: 'y', responsive:true, maintainAspectRatio:false, plugins: { legend: { display: false } } } 
+                });
+            }
+        }
+        
+        async function loadDetail() {
+            let st = document.getElementById('dt-station').value;
+            if(!st) return;
+            document.getElementById('loader-overlay').style.display = 'flex';
+            const criteria = { 
+                division: 'All', station: st, 
+                start: document.getElementById('dt-start').value, 
+                end: document.getElementById('dt-end').value 
+            };
+            
+            const data = await fetchData('getDetailDataMultiSource', { criteria: criteria });
+            document.getElementById('loader-overlay').style.display = 'none';
+            
+            if(data) {
+                document.getElementById('detail-result').style.display='block';
+                let tbody = document.getElementById('dt-tbody'); tbody.innerHTML = '';
+                data.forEach(r => {
+                   tbody.innerHTML += `<tr><td><div class="fw-bold">${r.date?new Date(r.date).getDate():'-'}</div><div class="small text-muted">${new Date(r.date).toLocaleDateString('th-TH',{month:'short'})}</div></td><td><div class="text-truncate" style="max-width:140px">${r.name}</div><div class="small text-muted">${r.revType}</div></td><td class="text-end fw-bold text-primary">${formatCurrency(r.revenue)}</td></tr>`;
+                });
+            }
+        }
+
+        // --- UTILS ---
+        function switchTab(tab, el) {
+            document.querySelectorAll('.view-section').forEach(d=>d.style.display='none');
+            document.getElementById('view-'+tab).style.display='block';
+            document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+            el.classList.add('active');
+            window.scrollTo(0,0);
+        }
+        function formatCurrency(n) { return n.toLocaleString('th-TH', {minimumFractionDigits:0, maximumFractionDigits:0}); }
+        function fillSelect(id, items, cur) { 
+            let el = document.getElementById(id); 
+            // Keep first option if exists? No, clear all usually better here
+            if(id !== 'dt-station') el.innerHTML=''; 
+            items.forEach(v=>{ let opt=document.createElement('option'); opt.value=v; opt.text=v; el.add(opt); }); 
+            if(cur) el.value=cur; 
+        }
+        function animateValue(id, end) {
+            const obj = document.getElementById(id);
+            let start = 0, duration = 1000, startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                obj.innerHTML = formatCurrency(Math.floor(progress * (end - start) + start));
+                if (progress < 1) window.requestAnimationFrame(step);
+            };
+            window.requestAnimationFrame(step);
+        }
+    </script>
+</body>
+</html>
