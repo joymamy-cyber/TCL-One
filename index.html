@@ -5,55 +5,97 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TCL Revenue Dashboard</title>
     
+    <!-- 1. Styles (Tailwind CSS) -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
-    <script src="https://unpkg.com/lucide-react@latest/dist/umd/lucide-react.js"></script>
+    <!-- 2. React, ReactDOM, Babel, PropTypes, Recharts -->
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    
+    <!-- Recharts (Stable Version for CDN) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.3/Recharts.min.js"></script>
 
     <style>
-        /* ปรับ Font ให้สวยงาม */
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
-        body { font-family: 'Sarabun', sans-serif; }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Loading & Error Styles */
+        #root:empty::before {
+            content: 'กำลังโหลดระบบ...';
+            display: block;
+            text-align: center;
+            padding-top: 50px;
+            color: #64748b;
+        }
     </style>
+
+    <!-- Error Handling Script -->
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            const root = document.getElementById('root');
+            root.innerHTML = `
+                <div style="padding: 20px; color: #dc2626; font-family: sans-serif; text-align: center;">
+                    <h3 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 10px;">เกิดข้อผิดพลาด (System Error)</h3>
+                    <p style="background: #fee2e2; padding: 10px; border-radius: 8px; display: inline-block;">${msg}</p>
+                    <p style="font-size: 0.875rem; color: #64748b; margin-top: 10px;">กรุณารีเฟรชหน้าจอ หรือตรวจสอบการเชื่อมต่ออินเทอร์เน็ต</p>
+                </div>
+            `;
+            console.error("Global Error:", error);
+            return false;
+        };
+    </script>
 </head>
-<body class="bg-slate-50 text-slate-900">
+<body>
     
     <div id="root"></div>
 
     <script type="text/babel">
-        // --- SETUP GLOBALS (ดึงตัวแปรมาจาก Library ที่นำเข้าด้านบน) ---
+        // Safety Check
+        if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || typeof Recharts === 'undefined') {
+            throw new Error("ไม่สามารถโหลดไลบรารีที่จำเป็นได้ (React/Recharts failed to load)");
+        }
+
         const { useState, useEffect, useMemo } = React;
         const { 
             BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
             LineChart, Line, AreaChart, Area, Cell 
         } = Recharts;
-        const { 
-            LayoutDashboard, TrendingUp, TrendingDown, Target, Filter, User, MapPin, 
-            Search, AlertCircle, CheckCircle2, DollarSign, Loader2, BarChart2, 
-            Building2, CalendarDays, XCircle 
-        } = lucideReact;
 
-        // --- API CONFIGURATION ---
+        // --- ICONS CONFIGURATION (Inline SVG) ---
+        const Icon = ({ path, size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} dangerouslySetInnerHTML={{ __html: path }} />
+        );
+
+        const Icons = {
+            LayoutDashboard: (p) => <Icon {...p} path='<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>' />,
+            TrendingUp: (p) => <Icon {...p} path='<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>' />,
+            TrendingDown: (p) => <Icon {...p} path='<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>' />,
+            Target: (p) => <Icon {...p} path='<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>' />,
+            Filter: (p) => <Icon {...p} path='<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>' />,
+            User: (p) => <Icon {...p} path='<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>' />,
+            MapPin: (p) => <Icon {...p} path='<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>' />,
+            Search: (p) => <Icon {...p} path='<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>' />,
+            AlertCircle: (p) => <Icon {...p} path='<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>' />,
+            CheckCircle2: (p) => <Icon {...p} path='<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>' />,
+            DollarSign: (p) => <Icon {...p} path='<line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>' />,
+            Loader2: (p) => <Icon {...p} className={`animate-spin ${p.className||''}`} path='<path d="M21 12a9 9 0 1 1-6.219-8.56"/>' />,
+            BarChart2: (p) => <Icon {...p} path='<line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>' />,
+            Building2: (p) => <Icon {...p} path='<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>' />,
+            CalendarDays: (p) => <Icon {...p} path='<rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>' />
+        };
+
+        // --- GLOBAL SETTINGS ---
         const API_URL = "https://script.google.com/macros/s/AKfycbwOwP-6GXY91XjKt-i5MlkKvimDhSRbcDQjcDupuuI3XlHyLv4R3WGcNYcKjW41Bqll4w/exec";
         const API_KEY = "olXRtf48PTPC2xPvWRijfiooIiQCElQqQBdCeHlVhvVYWxpob1Az8uQol9Nc";
 
         // --- HELPERS ---
-        const formatCurrency = (num) => {
-            return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }).format(num || 0);
-        };
-
-        const cleanStationName = (name) => {
-            if (!name) return '';
-            return name.replace('สถานีเดินรถ', '').replace('สถานี', '').trim();
-        };
-
+        const formatCurrency = (num) => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }).format(num || 0);
+        const cleanStationName = (name) => name ? name.replace('สถานีเดินรถ', '').replace('สถานี', '').trim() : '';
         const getDaysArray = (start, end) => {
             const arr = [];
             for(let dt=new Date(start); dt<=new Date(end); dt.setDate(dt.getDate()+1)){
@@ -81,15 +123,14 @@
                 return json;
             } catch (e) {
                 console.error("API Error:", e);
+                // ไม่ throw error เพื่อไม่ให้หน้าจอพัง ให้ return null แทน
                 return null;
             }
         };
 
-        // --- MOCK DATA GENERATORS ---
         const generateDetailedPerformance = (startDate, endDate) => {
             const days = getDaysArray(startDate, endDate);
             
-            // Employees
             const employees = Array.from({ length: 5 }, (_, i) => {
                 const name = `จนท. ${String.fromCharCode(65 + i)}`;
                 const dailyData = days.map(date => {
@@ -101,9 +142,8 @@
                 return { type: 'employee', name, dailyData, totalRev };
             });
 
-            // Points
             const points = Array.from({ length: 3 }, (_, i) => {
-                const name = `จุดจอด/ตู้ ${i + 1}`;
+                const name = `ช่องทาง/ตู้ ${i + 1}`;
                 const dailyData = days.map(date => {
                     const target = 30000;
                     const revenue = Math.floor(Math.random() * 40000) + 15000;
@@ -116,12 +156,29 @@
             return { employees, points, days };
         };
 
-        // --- MAIN COMPONENT ---
+        // --- COMPONENTS ---
+        const StatCard = ({ title, value, subValue, icon: IconComp, colorClass, trend }) => (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-start justify-between hover:shadow-md transition-shadow">
+                <div>
+                    <p className="text-slate-500 text-sm font-medium mb-1">{title}</p>
+                    <h3 className="text-2xl font-bold text-slate-800">{value}</h3>
+                    {subValue && (
+                    <p className={`text-sm mt-2 flex items-center gap-1 ${trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-slate-400'}`}>
+                        {trend === 'up' ? <Icons.TrendingUp size={14} /> : trend === 'down' ? <Icons.TrendingDown size={14} /> : null}
+                        {subValue}
+                    </p>
+                    )}
+                </div>
+                <div className={`p-3 rounded-lg ${colorClass} bg-opacity-10`}>
+                    <IconComp size={24} className={colorClass.replace('bg-', 'text-')} />
+                </div>
+            </div>
+        );
+
+        // --- MAIN APP ---
         function RevenueDashboard() {
             const [activeTab, setActiveTab] = useState('overview');
             const [loading, setLoading] = useState(true);
-            
-            // Metadata State
             const [metaData, setMetaData] = useState({ years: [], months: [], divisions: [], types: [], stations: [], rawMeta: [] });
             
             // Filter States
@@ -132,7 +189,6 @@
             
             // Data States
             const [overviewData, setOverviewData] = useState([]);
-            const [comparisonData, setComparisonData] = useState(null);
             
             // Deep Dive States
             const [searchDivision, setSearchDivision] = useState('');
@@ -141,7 +197,7 @@
             const [searchEnd, setSearchEnd] = useState(new Date().toISOString().split('T')[0]);
             const [deepDiveData, setDeepDiveData] = useState(null);
 
-            // Comparison Tab Filters
+            // Compare States
             const [compareDays, setCompareDays] = useState('7');
             const [compareDivision, setCompareDivision] = useState('All');
             const [compareType, setCompareType] = useState('All');
@@ -149,40 +205,51 @@
             useEffect(() => {
                 const init = async () => {
                     setLoading(true);
-                    const data = await fetchApi('getMetadata');
-                    if (data) {
-                        const uniqueYears = [...new Set(data.meta.map(m => m.y))].sort((a, b) => b - a);
-                        const uniqueMonths = [...new Set(data.meta.map(m => m.m))].sort((a, b) => a - b);
-                        const uniqueStations = [...new Set(data.meta.map(m => m.s))].sort();
-                        
-                        setMetaData({
-                            years: uniqueYears,
-                            months: uniqueMonths,
-                            divisions: ['All', ...data.divisions],
-                            types: ['All', ...data.types],
-                            stations: uniqueStations,
-                            rawMeta: data.meta
-                        });
+                    try {
+                        const data = await fetchApi('getMetadata');
+                        if (data) {
+                            const uniqueYears = [...new Set(data.meta.map(m => m.y))].sort((a, b) => b - a);
+                            const uniqueMonths = [...new Set(data.meta.map(m => m.m))].sort((a, b) => a - b);
+                            const uniqueStations = [...new Set(data.meta.map(m => m.s))].sort();
+                            
+                            setMetaData({
+                                years: uniqueYears,
+                                months: uniqueMonths,
+                                divisions: ['All', ...data.divisions],
+                                types: ['All', ...data.types],
+                                stations: uniqueStations,
+                                rawMeta: data.meta
+                            });
 
-                        if (uniqueYears.includes(new Date().getFullYear())) setSelectedYear(new Date().getFullYear());
-                        
-                        await loadOverview(new Date().getFullYear(), new Date().getMonth() + 1);
+                            if (uniqueYears.includes(new Date().getFullYear())) setSelectedYear(new Date().getFullYear());
+                            
+                            // Load initial data
+                            await loadOverview(new Date().getFullYear(), new Date().getMonth() + 1);
+                        }
+                    } catch (err) {
+                        console.error("Init Error:", err);
+                    } finally {
+                        setLoading(false);
                     }
-                    setLoading(false);
                 };
                 init();
             }, []);
 
             const loadOverview = async (y, m) => {
                 setLoading(true);
-                const criteria = { group: 'Station', division: 'All', year: y, month: m, station: 'All' };
-                const data = await fetchApi('getOverviewData', criteria);
-                if (data) setOverviewData(data);
-                setLoading(false);
+                try {
+                    const criteria = { group: 'Station', division: 'All', year: y, month: m, station: 'All' };
+                    const data = await fetchApi('getOverviewData', criteria);
+                    if (data) setOverviewData(data);
+                } catch(e) {
+                    console.error("Load Overview Error", e);
+                } finally {
+                    setLoading(false);
+                }
             };
 
             const processedOverview = useMemo(() => {
-                let filtered = overviewData;
+                let filtered = overviewData || [];
                 if (selectedDivision !== 'All') {
                     filtered = filtered.filter(item => {
                         const meta = metaData.rawMeta.find(m => m.s === item.station);
@@ -227,12 +294,14 @@
                 return { totalRev, totalTarget, percent, overTargetCount, underTargetCount, topStations, bottomStations, stationsArr, accTrendData };
             }, [overviewData, selectedDivision, selectedType, metaData]);
 
-            const handleSearchDetail = async () => {
+            const handleSearchDetail = () => {
                 if(!searchDivision || !searchStation || !searchStart || !searchEnd) return;
                 setLoading(true);
-                const mockDetails = generateDetailedPerformance(searchStart, searchEnd);
-                setDeepDiveData(mockDetails);
-                setTimeout(() => setLoading(false), 500); 
+                setTimeout(() => {
+                    const mockDetails = generateDetailedPerformance(searchStart, searchEnd);
+                    setDeepDiveData(mockDetails);
+                    setLoading(false);
+                }, 600); 
             };
 
             const filteredStations = useMemo(() => {
@@ -251,30 +320,12 @@
                 ];
             }, [deepDiveData]);
 
-            const StatCard = ({ title, value, subValue, icon: Icon, colorClass, trend }) => (
-                <div className={`bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-start justify-between hover:shadow-md transition-shadow`}>
-                    <div>
-                        <p className="text-slate-500 text-sm font-medium mb-1">{title}</p>
-                        <h3 className="text-2xl font-bold text-slate-800">{value}</h3>
-                        {subValue && (
-                        <p className={`text-sm mt-2 flex items-center gap-1 ${trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-slate-400'}`}>
-                            {trend === 'up' ? <TrendingUp size={14} /> : trend === 'down' ? <TrendingDown size={14} /> : null}
-                            {subValue}
-                        </p>
-                        )}
-                    </div>
-                    <div className={`p-3 rounded-lg ${colorClass} bg-opacity-10`}>
-                        <Icon size={24} className={colorClass.replace('bg-', 'text-')} />
-                    </div>
-                </div>
-            );
-
             return (
-                <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-24">
+                <div className="min-h-screen pb-24">
                     {/* Loading Overlay */}
                     {loading && (
                         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
-                            <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-2" />
+                            <Icons.Loader2 className="w-12 h-12 text-blue-600 mb-2" />
                             <span className="text-slate-600 font-medium">กำลังโหลดข้อมูล...</span>
                         </div>
                     )}
@@ -285,7 +336,7 @@
                             <div className="flex justify-between items-center mb-6">
                                 <div>
                                     <h1 className="text-2xl font-bold flex items-center gap-2">
-                                        <LayoutDashboard className="text-orange-500" />
+                                        <Icons.LayoutDashboard className="text-orange-500" />
                                         TCL Dashboard
                                     </h1>
                                     <p className="text-blue-200 text-sm mt-1">
@@ -296,9 +347,9 @@
                             
                             <div className="flex gap-2 overflow-x-auto pb-2">
                                 {[
-                                    { id: 'overview', label: 'ภาพรวม', icon: LayoutDashboard },
-                                    { id: 'compare', label: 'เปรียบเทียบ', icon: BarChart2 },
-                                    { id: 'deepdive', label: 'เจาะลึก', icon: Search }
+                                    { id: 'overview', label: 'ภาพรวม', icon: Icons.LayoutDashboard },
+                                    { id: 'compare', label: 'เปรียบเทียบ', icon: Icons.BarChart2 },
+                                    { id: 'deepdive', label: 'เจาะลึก', icon: Icons.Search }
                                 ].map(tab => (
                                     <button
                                         key={tab.id}
@@ -321,10 +372,10 @@
                         
                         {/* --- OVERVIEW TAB --- */}
                         {activeTab === 'overview' && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="space-y-6">
                                 <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center gap-4">
                                     <div className="flex items-center gap-2 text-slate-500">
-                                        <Filter size={18} />
+                                        <Icons.Filter size={18} />
                                         <span className="text-sm font-medium">ตัวกรอง:</span>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
@@ -384,7 +435,7 @@
                                         value={formatCurrency(processedOverview.totalRev)} 
                                         subValue={`${processedOverview.percent.toFixed(1)}% ของเป้าหมาย`}
                                         trend={processedOverview.percent >= 100 ? 'up' : 'down'}
-                                        icon={DollarSign}
+                                        icon={Icons.DollarSign}
                                         colorClass="bg-blue-500 text-blue-600"
                                     />
                                     <StatCard 
@@ -392,7 +443,7 @@
                                         value={formatCurrency(processedOverview.totalTarget)} 
                                         subValue="เป้าหมายประจำเดือน"
                                         trend="neutral"
-                                        icon={Target}
+                                        icon={Icons.Target}
                                         colorClass="bg-amber-500 text-amber-600"
                                     />
                                     <StatCard 
@@ -400,7 +451,7 @@
                                         value={`${processedOverview.overTargetCount} แห่ง`}
                                         subValue="ผลงานยอดเยี่ยม"
                                         trend="up"
-                                        icon={CheckCircle2}
+                                        icon={Icons.CheckCircle2}
                                         colorClass="bg-green-500 text-green-600"
                                     />
                                     <StatCard 
@@ -408,7 +459,7 @@
                                         value={`${processedOverview.underTargetCount} แห่ง`}
                                         subValue="ต้องปรับปรุง"
                                         trend="down"
-                                        icon={AlertCircle}
+                                        icon={Icons.AlertCircle}
                                         colorClass="bg-red-500 text-red-600"
                                     />
                                 </div>
@@ -476,7 +527,7 @@
                         )}
 
                         {activeTab === 'compare' && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="space-y-6">
                                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                                     <h2 className="text-lg font-bold text-slate-800 mb-4">เปรียบเทียบย้อนหลัง (Historical Comparison)</h2>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
@@ -510,17 +561,17 @@
                         )}
 
                         {activeTab === 'deepdive' && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="space-y-6">
                                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                                     <div className="flex items-center gap-2 mb-4 text-slate-800">
-                                        <Search className="text-blue-600" />
+                                        <Icons.Search className="text-blue-600" />
                                         <h2 className="font-bold text-lg">ค้นหารายละเอียด (Deep Dive Search)</h2>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                         <div>
                                             <label className="block text-xs text-slate-500 mb-1">1. เลือกกอง/ภาค</label>
                                             <div className="relative">
-                                                <Building2 className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                                                <Icons.Building2 className="absolute left-3 top-2.5 text-slate-400" size={16} />
                                                 <select 
                                                     className="w-full pl-9 p-2 border rounded-lg text-sm bg-slate-50 focus:bg-white transition-colors outline-none focus:border-blue-500" 
                                                     value={searchDivision} 
@@ -534,7 +585,7 @@
                                         <div>
                                             <label className="block text-xs text-slate-500 mb-1">2. เลือกสถานี (1 แห่ง)</label>
                                             <div className="relative">
-                                                <MapPin className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                                                <Icons.MapPin className="absolute left-3 top-2.5 text-slate-400" size={16} />
                                                 <select 
                                                     className="w-full pl-9 p-2 border rounded-lg text-sm bg-slate-50 focus:bg-white transition-colors outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400" 
                                                     value={searchStation} 
@@ -560,7 +611,7 @@
                                                 disabled={!searchStation}
                                                 className="w-full bg-indigo-600 text-white p-2.5 rounded-lg font-medium hover:bg-indigo-700 disabled:bg-slate-300 transition-colors shadow-sm flex justify-center items-center gap-2"
                                             >
-                                                <Search size={18} />
+                                                <Icons.Search size={18} />
                                                 ค้นหาข้อมูลเจาะลึก
                                             </button>
                                         </div>
@@ -568,118 +619,116 @@
                                 </div>
 
                                 {deepDiveData && (
-                                    <>
-                                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                            <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                                                <h3 className="font-bold text-slate-800 mb-1">สัดส่วนรายได้รวม</h3>
-                                                <p className="text-xs text-slate-500 mb-4">เปรียบเทียบ พนักงาน vs จุดจอด (ช่วงวันที่เลือก)</p>
-                                                <div className="h-[250px]">
-                                                    <ResponsiveContainer width="100%" height="100%">
-                                                        <BarChart data={sourceComparisonData}>
-                                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                                            <XAxis dataKey="name" tick={{fontSize: 12}} />
-                                                            <YAxis tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
-                                                            <Tooltip formatter={(val) => formatCurrency(val)} />
-                                                            <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
-                                                                {sourceComparisonData.map((entry, index) => (
-                                                                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                                                                ))}
-                                                            </Bar>
-                                                        </BarChart>
-                                                    </ResponsiveContainer>
-                                                </div>
-                                            </div>
-
-                                            <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-                                                <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
-                                                    <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                                                        <CalendarDays size={18} className="text-indigo-500" />
-                                                        ตารางผลการปฏิบัติงานรายวัน
-                                                    </h3>
-                                                    <div className="flex gap-4 text-xs">
-                                                        <span className="flex items-center gap-1 text-green-700"><CheckCircle2 size={14} /> เกินเป้า</span>
-                                                        <span className="flex items-center gap-1 text-red-700"><AlertCircle size={14} /> ต่ำเป้า</span>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div className="overflow-auto custom-scrollbar flex-1">
-                                                    <table className="w-full text-sm border-collapse">
-                                                        <thead className="bg-slate-50 text-slate-500 sticky top-0 z-10 shadow-sm">
-                                                            <tr>
-                                                                <th className="px-4 py-3 text-left font-medium min-w-[150px] bg-slate-50 border-b">รายชื่อ / จุดจอด</th>
-                                                                {deepDiveData.days.map(d => (
-                                                                    <th key={d} className="px-2 py-3 text-center min-w-[60px] bg-slate-50 border-b">
-                                                                        <div className="text-xs">{new Date(d).getDate()}</div>
-                                                                        <div className="text-[10px] uppercase">{new Date(d).toLocaleDateString('en-US', {weekday: 'short'})}</div>
-                                                                    </th>
-                                                                ))}
-                                                                <th className="px-4 py-3 text-right font-medium min-w-[100px] bg-slate-50 border-b">รวม</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-slate-100">
-                                                            <tr className="bg-slate-50/50">
-                                                                <td colSpan={deepDiveData.days.length + 2} className="px-4 py-2 text-xs font-bold text-indigo-600 uppercase tracking-wider">
-                                                                    พนักงาน (Employees)
-                                                                </td>
-                                                            </tr>
-                                                            {deepDiveData.employees.map((emp, i) => (
-                                                                <tr key={`e-${i}`} className="hover:bg-indigo-50/30 transition-colors">
-                                                                    <td className="px-4 py-3 font-medium text-slate-700 border-r border-slate-100">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <User size={14} className="text-slate-400" />
-                                                                            {emp.name}
-                                                                        </div>
-                                                                    </td>
-                                                                    {emp.dailyData.map((day, idx) => (
-                                                                        <td key={idx} className="px-2 py-3 text-center border-r border-slate-50">
-                                                                            {day.isOver ? (
-                                                                                <CheckCircle2 size={18} className="mx-auto text-green-500" />
-                                                                            ) : (
-                                                                                <AlertCircle size={18} className="mx-auto text-red-500" />
-                                                                            )}
-                                                                            <div className="text-[10px] text-slate-400 mt-1">{formatCurrency(day.revenue).replace('฿','')}</div>
-                                                                        </td>
-                                                                    ))}
-                                                                    <td className="px-4 py-3 text-right font-bold text-indigo-600">
-                                                                        {formatCurrency(emp.totalRev)}
-                                                                    </td>
-                                                                </tr>
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                        <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                                            <h3 className="font-bold text-slate-800 mb-1">สัดส่วนรายได้รวม</h3>
+                                            <p className="text-xs text-slate-500 mb-4">เปรียบเทียบ พนักงาน vs จุดจอด</p>
+                                            <div className="h-[250px]">
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <BarChart data={sourceComparisonData}>
+                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                                        <XAxis dataKey="name" tick={{fontSize: 12}} />
+                                                        <YAxis tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
+                                                        <Tooltip formatter={(val) => formatCurrency(val)} />
+                                                        <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
+                                                            {sourceComparisonData.map((entry, index) => (
+                                                                <Cell key={`cell-${index}`} fill={entry.fill} />
                                                             ))}
-
-                                                            <tr className="bg-slate-50/50">
-                                                                <td colSpan={deepDiveData.days.length + 2} className="px-4 py-2 text-xs font-bold text-teal-600 uppercase tracking-wider">
-                                                                    จุดจอด / สถานี (Points)
-                                                                </td>
-                                                            </tr>
-                                                            {deepDiveData.points.map((pt, i) => (
-                                                                <tr key={`p-${i}`} className="hover:bg-teal-50/30 transition-colors">
-                                                                    <td className="px-4 py-3 font-medium text-slate-700 border-r border-slate-100">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <MapPin size={14} className="text-slate-400" />
-                                                                            {pt.name}
-                                                                        </div>
-                                                                    </td>
-                                                                    {pt.dailyData.map((day, idx) => (
-                                                                        <td key={idx} className="px-2 py-3 text-center border-r border-slate-50">
-                                                                            {day.isOver ? (
-                                                                                <CheckCircle2 size={18} className="mx-auto text-green-500" />
-                                                                            ) : (
-                                                                                <AlertCircle size={18} className="mx-auto text-red-500" />
-                                                                            )}
-                                                                            <div className="text-[10px] text-slate-400 mt-1">{formatCurrency(day.revenue).replace('฿','')}</div>
-                                                                        </td>
-                                                                    ))}
-                                                                    <td className="px-4 py-3 text-right font-bold text-teal-600">
-                                                                        {formatCurrency(pt.totalRev)}
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
+                                                        </Bar>
+                                                    </BarChart>
+                                                </ResponsiveContainer>
                                             </div>
                                         </div>
-                                    </>
+
+                                        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                                            <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
+                                                <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                                                    <Icons.CalendarDays size={18} className="text-indigo-500" />
+                                                    ตารางผลการปฏิบัติงานรายวัน
+                                                </h3>
+                                                <div className="flex gap-4 text-xs">
+                                                    <span className="flex items-center gap-1 text-green-700"><Icons.CheckCircle2 size={14} /> เกินเป้า</span>
+                                                    <span className="flex items-center gap-1 text-red-700"><Icons.AlertCircle size={14} /> ต่ำเป้า</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="overflow-auto custom-scrollbar flex-1">
+                                                <table className="w-full text-sm border-collapse">
+                                                    <thead className="bg-slate-50 text-slate-500 sticky top-0 z-10 shadow-sm">
+                                                        <tr>
+                                                            <th className="px-4 py-3 text-left font-medium min-w-[150px] bg-slate-50 border-b">รายชื่อ / จุดจอด</th>
+                                                            {deepDiveData.days.map(d => (
+                                                                <th key={d} className="px-2 py-3 text-center min-w-[60px] bg-slate-50 border-b">
+                                                                    <div className="text-xs">{new Date(d).getDate()}</div>
+                                                                    <div className="text-[10px] uppercase">{new Date(d).toLocaleDateString('en-US', {weekday: 'short'})}</div>
+                                                                </th>
+                                                            ))}
+                                                            <th className="px-4 py-3 text-right font-medium min-w-[100px] bg-slate-50 border-b">รวม</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100">
+                                                        <tr className="bg-slate-50/50">
+                                                            <td colSpan={deepDiveData.days.length + 2} className="px-4 py-2 text-xs font-bold text-indigo-600 uppercase tracking-wider">
+                                                                พนักงาน (Employees)
+                                                            </td>
+                                                        </tr>
+                                                        {deepDiveData.employees.map((emp, i) => (
+                                                            <tr key={`e-${i}`} className="hover:bg-indigo-50/30 transition-colors">
+                                                                <td className="px-4 py-3 font-medium text-slate-700 border-r border-slate-100">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Icons.User size={14} className="text-slate-400" />
+                                                                        {emp.name}
+                                                                    </div>
+                                                                </td>
+                                                                {emp.dailyData.map((day, idx) => (
+                                                                    <td key={idx} className="px-2 py-3 text-center border-r border-slate-50">
+                                                                        {day.isOver ? (
+                                                                            <div className="flex justify-center"><Icons.CheckCircle2 size={18} className="text-green-500" /></div>
+                                                                        ) : (
+                                                                            <div className="flex justify-center"><Icons.AlertCircle size={18} className="text-red-500" /></div>
+                                                                        )}
+                                                                        <div className="text-[10px] text-slate-400 mt-1">{formatCurrency(day.revenue).replace('฿','')}</div>
+                                                                    </td>
+                                                                ))}
+                                                                <td className="px-4 py-3 text-right font-bold text-indigo-600">
+                                                                    {formatCurrency(emp.totalRev)}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+
+                                                        <tr className="bg-slate-50/50">
+                                                            <td colSpan={deepDiveData.days.length + 2} className="px-4 py-2 text-xs font-bold text-teal-600 uppercase tracking-wider">
+                                                                จุดจอด / สถานี (Points)
+                                                            </td>
+                                                        </tr>
+                                                        {deepDiveData.points.map((pt, i) => (
+                                                            <tr key={`p-${i}`} className="hover:bg-teal-50/30 transition-colors">
+                                                                <td className="px-4 py-3 font-medium text-slate-700 border-r border-slate-100">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Icons.MapPin size={14} className="text-slate-400" />
+                                                                        {pt.name}
+                                                                    </div>
+                                                                </td>
+                                                                {pt.dailyData.map((day, idx) => (
+                                                                    <td key={idx} className="px-2 py-3 text-center border-r border-slate-50">
+                                                                        {day.isOver ? (
+                                                                            <div className="flex justify-center"><Icons.CheckCircle2 size={18} className="text-green-500" /></div>
+                                                                        ) : (
+                                                                            <div className="flex justify-center"><Icons.AlertCircle size={18} className="text-red-500" /></div>
+                                                                        )}
+                                                                        <div className="text-[10px] text-slate-400 mt-1">{formatCurrency(day.revenue).replace('฿','')}</div>
+                                                                    </td>
+                                                                ))}
+                                                                <td className="px-4 py-3 text-right font-bold text-teal-600">
+                                                                    {formatCurrency(pt.totalRev)}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         )}
@@ -688,7 +737,7 @@
             );
         }
 
-        // --- MOUNT REACT TO DOM ---
+        // --- RENDER ---
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<RevenueDashboard />);
     </script>
