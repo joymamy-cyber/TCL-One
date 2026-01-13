@@ -1,408 +1,706 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <title>TCL Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, 
+  LineChart, Line, AreaChart, Area, Cell
+} from 'recharts';
+import { 
+  LayoutDashboard, 
+  TrendingUp, 
+  TrendingDown, 
+  Target, 
+  Filter,
+  User,
+  MapPin,
+  Search,
+  AlertCircle,
+  CheckCircle2,
+  DollarSign,
+  Loader2,
+  BarChart2,
+  Building2,
+  CalendarDays,
+  XCircle
+} from 'lucide-react';
+
+// --- API CONFIGURATION ---
+const API_URL = "https://script.google.com/macros/s/AKfycbwOwP-6GXY91XjKt-i5MlkKvimDhSRbcDQjcDupuuI3XlHyLv4R3WGcNYcKjW41Bqll4w/exec";
+const API_KEY = "olXRtf48PTPC2xPvWRijfiooIiQCElQqQBdCeHlVhvVYWxpob1Az8uQol9Nc";
+
+// --- HELPERS ---
+const formatCurrency = (num) => {
+  return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }).format(num || 0);
+};
+
+const cleanStationName = (name) => {
+  if (!name) return '';
+  return name.replace('สถานีเดินรถ', '').replace('สถานี', '').trim();
+};
+
+const getDaysArray = (start, end) => {
+    const arr = [];
+    for(let dt=new Date(start); dt<=new Date(end); dt.setDate(dt.getDate()+1)){
+        arr.push(new Date(dt).toISOString().split('T')[0]);
+    }
+    return arr;
+};
+
+const fetchApi = async (funcName, paramsObj = {}) => {
+  const url = new URL(API_URL);
+  url.searchParams.append('key', API_KEY);
+  url.searchParams.append('func', funcName);
+
+  if (funcName === 'getOverviewData' || funcName === 'getDetailDataMultiSource') {
+    url.searchParams.append('criteria', JSON.stringify(paramsObj));
+  } else if (funcName === 'getCompareData') {
+    url.searchParams.append('days', paramsObj.days);
+    url.searchParams.append('criteria', JSON.stringify(paramsObj.criteria));
+  }
+
+  try {
+    const res = await fetch(url);
+    const json = await res.json();
+    if (json.status === 'error') throw new Error(json.message);
+    return json;
+  } catch (e) {
+    console.error("API Error:", e);
+    return null;
+  }
+};
+
+// --- MOCK DATA GENERATORS (For features not yet in API) ---
+
+// Generate daily performance for Employees & Points
+const generateDetailedPerformance = (startDate, endDate) => {
+    const days = getDaysArray(startDate, endDate);
     
-    <style>
-        /* --- BEAUTIFUL UI STYLE --- */
-        :root { --primary: #F05A28; --bg: #f2f4f7; --glass: rgba(255,255,255,0.95); }
-        body { font-family: 'Sarabun', sans-serif; background: var(--bg); padding-bottom: 90px; }
-        
-        .app-header { background: linear-gradient(135deg, #004e92, #000428); color: white; padding: 15px 20px 30px; border-radius: 0 0 25px 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        
-        .glass-card { background: white; border-radius: 16px; padding: 15px; margin-bottom: 15px; border: 1px solid rgba(0,0,0,0.05); box-shadow: 0 2px 10px rgba(0,0,0,0.03); }
-        
-        .kpi-mini { padding: 10px; border-radius: 12px; background: #f8f9fa; border-left: 4px solid #ccc; height: 100%; }
-        .kpi-val { font-size: 1.3rem; font-weight: bold; line-height: 1.2; }
-        .kpi-lbl { font-size: 0.8rem; color: #666; }
+    // Employees
+    const employees = Array.from({ length: 5 }, (_, i) => {
+        const name = `จนท. ${String.fromCharCode(65 + i)}`;
+        const dailyData = days.map(date => {
+            const target = 10000;
+            const revenue = Math.floor(Math.random() * 15000) + 5000; // Random 5k-20k
+            return { date, revenue, target, isOver: revenue >= target };
+        });
+        const totalRev = dailyData.reduce((acc, c) => acc + c.revenue, 0);
+        return { type: 'employee', name, dailyData, totalRev };
+    });
 
-        .btm-nav { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; background: rgba(20, 20, 20, 0.9); backdrop-filter: blur(10px); border-radius: 50px; padding: 10px 20px; display: flex; justify-content: space-around; z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-        .nav-item { color: #888; text-align: center; font-size: 0.7rem; cursor: pointer; transition: 0.3s; }
-        .nav-item i { font-size: 1.4rem; display: block; margin-bottom: 2px; }
-        .nav-item.active { color: #fff; transform: translateY(-3px); }
-        .nav-item.active i { color: var(--primary); }
+    // Points (Stations/Booths)
+    const points = Array.from({ length: 3 }, (_, i) => {
+        const name = `จุดจอด/ตู้ ${i + 1}`;
+        const dailyData = days.map(date => {
+            const target = 30000;
+            const revenue = Math.floor(Math.random() * 40000) + 15000; // Random 15k-55k
+            return { date, revenue, target, isOver: revenue >= target };
+        });
+        const totalRev = dailyData.reduce((acc, c) => acc + c.revenue, 0);
+        return { type: 'point', name, dailyData, totalRev };
+    });
 
-        #loader { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.9); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; }
-        .spinner-custom { width: 40px; height: 40px; border: 4px solid #eee; border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    return { employees, points, days };
+};
 
-        /* Helpers */
-        .text-pos { color: #198754 !important; }
-        .text-neg { color: #dc3545 !important; }
-        .chart-box { height: 250px; position: relative; }
+// --- MAIN COMPONENT ---
+export default function RevenueDashboard() {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [loading, setLoading] = useState(true);
+  
+  // Metadata State
+  const [metaData, setMetaData] = useState({ years: [], months: [], divisions: [], types: [], stations: [], rawMeta: [] });
+  
+  // Filter States (Overview)
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedDivision, setSelectedDivision] = useState('All');
+  const [selectedType, setSelectedType] = useState('All');
+  
+  // Data States
+  const [overviewData, setOverviewData] = useState([]);
+  const [comparisonData, setComparisonData] = useState(null);
+  
+  // Deep Dive States
+  const [searchDivision, setSearchDivision] = useState('');
+  const [searchStation, setSearchStation] = useState('');
+  const [searchStart, setSearchStart] = useState(new Date().toISOString().split('T')[0]);
+  const [searchEnd, setSearchEnd] = useState(new Date().toISOString().split('T')[0]);
+  const [deepDiveData, setDeepDiveData] = useState(null); // Holds the mock detailed data
+
+  // Comparison Tab Filters
+  const [compareDays, setCompareDays] = useState('7');
+  const [compareDivision, setCompareDivision] = useState('All');
+  const [compareType, setCompareType] = useState('All');
+
+  // Initial Load
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true);
+      const data = await fetchApi('getMetadata');
+      if (data) {
+        const uniqueYears = [...new Set(data.meta.map(m => m.y))].sort((a, b) => b - a);
+        const uniqueMonths = [...new Set(data.meta.map(m => m.m))].sort((a, b) => a - b);
+        const uniqueStations = [...new Set(data.meta.map(m => m.s))].sort();
         
-        /* Pills */
-        .nav-pills .nav-link { border-radius: 20px; font-size: 0.85rem; color: #555; background: #fff; border: 1px solid #eee; padding: 5px 12px; margin-right: 5px; }
-        .nav-pills .nav-link.active { background: #004e92; color: white; border-color: #004e92; }
-    </style>
-</head>
-<body>
+        setMetaData({
+          years: uniqueYears,
+          months: uniqueMonths,
+          divisions: ['All', ...data.divisions],
+          types: ['All', ...data.types],
+          stations: uniqueStations,
+          rawMeta: data.meta
+        });
 
-    <div id="loader">
-        <div class="spinner-custom mb-2"></div>
-        <div class="text-muted small">Loading...</div>
+        if (uniqueYears.includes(new Date().getFullYear())) setSelectedYear(new Date().getFullYear());
+        
+        await loadOverview(new Date().getFullYear(), new Date().getMonth() + 1);
+      }
+      setLoading(false);
+    };
+    init();
+  }, []);
+
+  const loadOverview = async (y, m) => {
+    setLoading(true);
+    const criteria = { group: 'Station', division: 'All', year: y, month: m, station: 'All' };
+    const data = await fetchApi('getOverviewData', criteria);
+    if (data) setOverviewData(data);
+    setLoading(false);
+  };
+
+  // --- OVERVIEW LOGIC ---
+  const processedOverview = useMemo(() => {
+    let filtered = overviewData;
+    if (selectedDivision !== 'All') {
+      filtered = filtered.filter(item => {
+        const meta = metaData.rawMeta.find(m => m.s === item.station);
+        return meta && meta.d === selectedDivision;
+      });
+    }
+    if (selectedType !== 'All') {
+      filtered = filtered.filter(item => item.revType && item.revType.includes(selectedType));
+    }
+
+    const totalRev = filtered.reduce((acc, curr) => acc + curr.revenue, 0);
+    const totalTarget = filtered.reduce((acc, curr) => acc + curr.target, 0);
+    const percent = totalTarget > 0 ? (totalRev / totalTarget) * 100 : 0;
+    
+    const stationStats = {};
+    const dailyStats = {};
+
+    filtered.forEach(item => {
+      if (!stationStats[item.station]) stationStats[item.station] = { name: item.station, revenue: 0, target: 0 };
+      stationStats[item.station].revenue += item.revenue;
+      stationStats[item.station].target += item.target;
+
+      if (!dailyStats[item.day]) dailyStats[item.day] = { day: item.day, revenue: 0, target: 0 };
+      dailyStats[item.day].revenue += item.revenue;
+      dailyStats[item.day].target += item.target;
+    });
+
+    const stationsArr = Object.values(stationStats);
+    const overTargetCount = stationsArr.filter(s => s.revenue >= s.target).length;
+    const underTargetCount = stationsArr.filter(s => s.revenue < s.target).length;
+    const topStations = [...stationsArr].sort((a, b) => b.revenue - a.revenue).slice(0, 15);
+    const bottomStations = [...stationsArr].sort((a, b) => a.revenue - b.revenue).slice(0, 15);
+    
+    const trendData = Object.values(dailyStats).sort((a, b) => a.day - b.day);
+    let accRev = 0, accTarget = 0;
+    const accTrendData = trendData.map(d => {
+        accRev += d.revenue;
+        accTarget += d.target;
+        return { ...d, accRev, accTarget };
+    });
+
+    return { totalRev, totalTarget, percent, overTargetCount, underTargetCount, topStations, bottomStations, stationsArr, accTrendData };
+  }, [overviewData, selectedDivision, selectedType, metaData]);
+
+  // --- DEEP DIVE LOGIC ---
+  const handleSearchDetail = async () => {
+      if(!searchDivision || !searchStation || !searchStart || !searchEnd) return;
+      setLoading(true);
+      
+      // 1. Fetch Basic Data (To verify connectivity/logging)
+      // Note: Real API might not support detailed employee data yet, so we use Mock for the detailed table as requested
+      // const criteria = { division: searchDivision, station: searchStation, start: searchStart, end: searchEnd };
+      // const apiData = await fetchApi('getDetailDataMultiSource', criteria);
+
+      // 2. Generate Detailed Performance Data (MOCK based on date range)
+      const mockDetails = generateDetailedPerformance(searchStart, searchEnd);
+      setDeepDiveData(mockDetails);
+
+      setTimeout(() => setLoading(false), 500); // Simulate network delay
+  };
+
+  // Filter Stations based on Selected Division
+  const filteredStations = useMemo(() => {
+      if (!searchDivision) return [];
+      const relevantMeta = metaData.rawMeta.filter(m => m.d === searchDivision);
+      return [...new Set(relevantMeta.map(m => m.s))].sort();
+  }, [searchDivision, metaData]);
+
+  // Comparison Graph Data (Employee vs Point)
+  const sourceComparisonData = useMemo(() => {
+      if (!deepDiveData) return [];
+      const totalEmp = deepDiveData.employees.reduce((acc, c) => acc + c.totalRev, 0);
+      const totalPoint = deepDiveData.points.reduce((acc, c) => acc + c.totalRev, 0);
+      return [
+          { name: 'พนักงานรวม', revenue: totalEmp, fill: '#6366f1' }, // Indigo
+          { name: 'จุดจอดรวม', revenue: totalPoint, fill: '#14b8a6' } // Teal
+      ];
+  }, [deepDiveData]);
+
+  // --- RENDERERS ---
+  const StatCard = ({ title, value, subValue, icon: Icon, colorClass, trend }) => (
+    <div className={`bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-start justify-between hover:shadow-md transition-shadow`}>
+      <div>
+        <p className="text-slate-500 text-sm font-medium mb-1">{title}</p>
+        <h3 className="text-2xl font-bold text-slate-800">{value}</h3>
+        {subValue && (
+          <p className={`text-sm mt-2 flex items-center gap-1 ${trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-slate-400'}`}>
+            {trend === 'up' ? <TrendingUp size={14} /> : trend === 'down' ? <TrendingDown size={14} /> : null}
+            {subValue}
+          </p>
+        )}
+      </div>
+      <div className={`p-3 rounded-lg ${colorClass} bg-opacity-10`}>
+        <Icon size={24} className={colorClass.replace('bg-', 'text-')} />
+      </div>
     </div>
+  );
 
-    <div class="app-header sticky-top">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <div class="fw-bold fs-5">TCL Monitor</div>
-                <div class="small opacity-75" id="header-date">-</div>
-            </div>
-            <button class="btn btn-light btn-sm rounded-circle shadow-sm" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasFilter">
-                <i class="bi bi-calendar4-range text-primary"></i>
-            </button>
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-24">
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
+            <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-2" />
+            <span className="text-slate-600 font-medium">กำลังโหลดข้อมูล...</span>
         </div>
-    </div>
+      )}
 
-    <div class="container-fluid px-3 pt-3">
-
-        <div id="view-overview" class="view-section">
-            
-            <div class="d-flex gap-2 mb-3 overflow-auto pb-1">
-                <select id="local-div" class="form-select form-select-sm shadow-sm rounded-pill" style="min-width:110px" onchange="applyLocalOverviewFilter()">
-                    <option value="All">ทุกภาค/กอง</option>
-                </select>
-                <div class="d-flex" id="type-pills">
-                    <button class="btn btn-sm btn-light border rounded-pill me-1 active" onclick="setOverviewType('All', this)">ทั้งหมด</button>
-                    <button class="btn btn-sm btn-light border rounded-pill me-1" onclick="setOverviewType('ค่าโดยสาร', this)">โดยสาร</button>
-                    <button class="btn btn-sm btn-light border rounded-pill" onclick="setOverviewType('ค่าพัสดุ', this)">พัสดุ</button>
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-900 to-slate-900 text-white pb-8 rounded-b-[2rem] shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h1 className="text-2xl font-bold flex items-center gap-2">
+                        <LayoutDashboard className="text-orange-500" />
+                        TCL Dashboard
+                    </h1>
+                    <p className="text-blue-200 text-sm mt-1">
+                        ข้อมูลประจำวันที่ {new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
                 </div>
             </div>
+            
+            <div className="flex gap-2 overflow-x-auto pb-2">
+                {[
+                    { id: 'overview', label: 'ภาพรวม', icon: LayoutDashboard },
+                    { id: 'compare', label: 'เปรียบเทียบ', icon: BarChart2 },
+                    { id: 'deepdive', label: 'เจาะลึก', icon: Search }
+                ].map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                            activeTab === tab.id 
+                            ? 'bg-white text-blue-900 shadow-md' 
+                            : 'bg-white/10 text-blue-100 hover:bg-white/20'
+                        }`}
+                    >
+                        <tab.icon size={16} />
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+        </div>
+      </div>
 
-            <div class="row g-2 mb-3">
-                <div class="col-6"><div class="kpi-mini" style="border-left-color: #0d6efd;"><div class="kpi-lbl">รายได้</div><div class="kpi-val text-primary" id="kpi-rev">0</div></div></div>
-                <div class="col-6"><div class="kpi-mini" style="border-left-color: #ffc107;"><div class="kpi-lbl">เป้าหมาย</div><div class="kpi-val text-warning" id="kpi-target">0</div></div></div>
-                <div class="col-12">
-                    <div class="glass-card d-flex justify-content-between align-items-center py-2 px-3 mb-0" id="kpi-card-diff">
-                        <div><div class="kpi-lbl">ส่วนต่าง</div><div class="fw-bold fs-5" id="kpi-diff">0</div></div>
-                        <div class="text-end"><div class="fw-bold fs-4" id="kpi-pct">0%</div></div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6">
+        
+        {/* --- OVERVIEW TAB --- */}
+        {activeTab === 'overview' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Filters */}
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-2 text-slate-500">
+                        <Filter size={18} />
+                        <span className="text-sm font-medium">ตัวกรอง:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {metaData.divisions.map(div => (
+                            <button
+                                key={div}
+                                onClick={() => setSelectedDivision(div)}
+                                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                                    selectedDivision === div ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                }`}
+                            >
+                                {div === 'All' ? 'ทั้งหมด' : div}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="w-px h-6 bg-slate-200 hidden md:block"></div>
+                    <div className="flex gap-2">
+                         {metaData.types.map(type => (
+                            <button
+                                key={type}
+                                onClick={() => setSelectedType(type)}
+                                className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors ${
+                                    selectedType === type ? 'border-orange-500 text-orange-600 bg-orange-50' : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                                }`}
+                            >
+                                {type === 'All' ? 'ทุกประเภท' : type}
+                            </button>
+                         ))}
+                    </div>
+                    <div className="ml-auto flex gap-2">
+                        <select 
+                            className="bg-slate-50 border border-slate-200 rounded-lg text-sm px-2 py-1 outline-none focus:border-blue-500"
+                            value={selectedMonth}
+                            onChange={(e) => { setSelectedMonth(Number(e.target.value)); }}
+                        >
+                            {metaData.months.map(m => <option key={m} value={m}>เดือน {m}</option>)}
+                        </select>
+                         <select 
+                            className="bg-slate-50 border border-slate-200 rounded-lg text-sm px-2 py-1 outline-none focus:border-blue-500"
+                            value={selectedYear}
+                            onChange={(e) => { setSelectedYear(Number(e.target.value)); }}
+                        >
+                            {metaData.years.map(y => <option key={y} value={y}>{y + 543}</option>)}
+                        </select>
+                        <button 
+                            onClick={() => loadOverview(selectedYear, selectedMonth)}
+                            className="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-700"
+                        >
+                            โหลด
+                        </button>
+                    </div>
+                </div>
+
+                {/* KPI Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard 
+                        title="รายได้รวม (Actual)" 
+                        value={formatCurrency(processedOverview.totalRev)} 
+                        subValue={`${processedOverview.percent.toFixed(1)}% ของเป้าหมาย`}
+                        trend={processedOverview.percent >= 100 ? 'up' : 'down'}
+                        icon={DollarSign}
+                        colorClass="bg-blue-500 text-blue-600"
+                    />
+                    <StatCard 
+                        title="เป้าหมาย (Target)" 
+                        value={formatCurrency(processedOverview.totalTarget)} 
+                        subValue="เป้าหมายประจำเดือน"
+                        trend="neutral"
+                        icon={Target}
+                        colorClass="bg-amber-500 text-amber-600"
+                    />
+                     <StatCard 
+                        title="สถานีเกินเป้า" 
+                        value={`${processedOverview.overTargetCount} แห่ง`}
+                        subValue="ผลงานยอดเยี่ยม"
+                        trend="up"
+                        icon={CheckCircle2}
+                        colorClass="bg-green-500 text-green-600"
+                    />
+                    <StatCard 
+                        title="สถานีต่ำเป้า" 
+                        value={`${processedOverview.underTargetCount} แห่ง`}
+                        subValue="ต้องปรับปรุง"
+                        trend="down"
+                        icon={AlertCircle}
+                        colorClass="bg-red-500 text-red-600"
+                    />
+                </div>
+
+                {/* Main Chart */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h3 className="text-lg font-bold text-slate-800 mb-1">แนวโน้มรายได้สะสม (Cumulative)</h3>
+                    <div className="h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={processedOverview.accTrendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
+                                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} tickFormatter={(v) => `${(v/1000000).toFixed(1)}M`} />
+                                <RechartsTooltip formatter={(val) => formatCurrency(val)} />
+                                <Legend />
+                                <Area type="monotone" dataKey="accTarget" name="เป้าสะสม" stroke="#94a3b8" strokeDasharray="5 5" fill="none" />
+                                <Area type="monotone" dataKey="accRev" name="รายได้สะสม" stroke="#3b82f6" strokeWidth={3} fill="url(#colorRev)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Station List Table */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="p-4 bg-slate-50 border-b border-slate-200">
+                        <h3 className="font-bold text-slate-700">รายการสรุปสถานะรายสถานี (Station Status)</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 text-slate-500">
+                                <tr>
+                                    <th className="px-6 py-3 font-medium">สถานี</th>
+                                    <th className="px-6 py-3 font-medium text-right">เป้าหมาย</th>
+                                    <th className="px-6 py-3 font-medium text-right">รายได้จริง</th>
+                                    <th className="px-6 py-3 font-medium text-center">สถานะ</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {processedOverview.stationsArr.sort((a,b)=>b.revenue-a.revenue).slice(0, 20).map((st, i) => {
+                                    const isOver = st.revenue >= st.target;
+                                    return (
+                                        <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-6 py-3 font-medium text-slate-700">{cleanStationName(st.name)}</td>
+                                            <td className="px-6 py-3 text-right text-slate-500 font-mono">{formatCurrency(st.target)}</td>
+                                            <td className={`px-6 py-3 text-right font-bold font-mono ${isOver ? 'text-green-600' : 'text-red-600'}`}>
+                                                {formatCurrency(st.revenue)}
+                                            </td>
+                                            <td className="px-6 py-3 text-center">
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${isOver ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                    {isOver ? 'เกินเป้า' : 'ต่ำเป้า'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
+        )}
 
-            <div class="glass-card">
-                <h6 class="fw-bold text-secondary mb-3">แนวโน้มรายวัน</h6>
-                <div class="chart-box"><canvas id="chart-trend"></canvas></div>
-            </div>
-
-            <div class="glass-card">
-                <div class="d-flex justify-content-between mb-2">
-                    <h6 class="fw-bold text-secondary" id="ranking-title">Top 15</h6>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-secondary" onclick="toggleRank('pct')">%</button>
-                        <button class="btn btn-outline-secondary active" onclick="toggleRank('top')">Top</button>
-                        <button class="btn btn-outline-secondary" onclick="toggleRank('low')">Low</button>
+        {/* --- COMPARE TAB --- */}
+        {activeTab === 'compare' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h2 className="text-lg font-bold text-slate-800 mb-4">เปรียบเทียบย้อนหลัง (Historical Comparison)</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                        <div>
+                            <label className="block text-xs text-slate-500 mb-1">ภาค/กอง</label>
+                            <select className="w-full p-2 border rounded-lg text-sm" value={compareDivision} onChange={e=>setCompareDivision(e.target.value)}>
+                                {metaData.divisions.map(d => <option key={d} value={d}>{d}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-slate-500 mb-1">ประเภท</label>
+                            <select className="w-full p-2 border rounded-lg text-sm" value={compareType} onChange={e=>setCompareType(e.target.value)}>
+                                {metaData.types.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                        </div>
+                         <div>
+                            <label className="block text-xs text-slate-500 mb-1">ช่วงเวลา</label>
+                            <select className="w-full p-2 border rounded-lg text-sm" value={compareDays} onChange={e=>setCompareDays(e.target.value)}>
+                                <option value="7">7 วันล่าสุด</option>
+                                <option value="15">15 วันล่าสุด</option>
+                            </select>
+                        </div>
+                        <div className="flex items-end">
+                            <button onClick={() => {/* Call API */}} className="w-full bg-blue-600 text-white p-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+                                ประมวลผล
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <div class="chart-box" style="height:350px"><canvas id="chart-rank"></canvas></div>
             </div>
+        )}
 
-            <div class="glass-card p-0 overflow-hidden">
-                <div class="p-2 bg-light border-bottom fw-bold small text-secondary">รายการล่าสุด</div>
-                <div class="table-responsive" style="max-height:300px">
-                    <table class="table table-sm table-striped mb-0" style="font-size:0.85rem">
-                        <tbody id="table-overview"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div id="view-compare" class="view-section" style="display:none">
-            <h5 class="fw-bold text-secondary mb-3">เปรียบเทียบย้อนหลัง</h5>
-            <div class="glass-card">
-                <div class="row g-2">
-                    <div class="col-6"><small>ภาค</small><select id="cp-div" class="form-select form-select-sm"><option value="All">ทั้งหมด</option></select></div>
-                    <div class="col-6"><small>ประเภท</small><select id="cp-type" class="form-select form-select-sm"><option value="All">ทั้งหมด</option></select></div>
-                    <div class="col-12"><small>ช่วงเวลา</small><select id="cp-days" class="form-select form-select-sm"><option value="7" selected>7 วันล่าสุด</option><option value="15">15 วันล่าสุด</option><option value="30">30 วันล่าสุด</option></select></div>
-                    <div class="col-12 mt-2"><button class="btn btn-primary w-100 rounded-pill" onclick="loadCompare()">ประมวลผล</button></div>
-                </div>
-            </div>
-            <div id="compare-result" class="glass-card" style="display:none">
-                <div class="chart-box" style="height:400px"><canvas id="chart-compare"></canvas></div>
-            </div>
-        </div>
-
-        <div id="view-detail" class="view-section" style="display:none">
-            <h5 class="fw-bold text-secondary mb-3">ค้นหาเจาะลึก</h5>
-            <div class="glass-card">
-                <div class="row g-2">
-                    <div class="col-12"><small>สถานี</small><select id="dt-station" class="form-select form-select-sm"></select></div>
-                    <div class="col-6"><small>เริ่ม</small><input type="date" id="dt-start" class="form-control form-control-sm"></div>
-                    <div class="col-6"><small>สิ้นสุด</small><input type="date" id="dt-end" class="form-control form-control-sm"></div>
-                    <div class="col-12 mt-2"><button class="btn btn-info text-white w-100 rounded-pill" onclick="loadDetail()">ค้นหา</button></div>
-                </div>
-            </div>
-            <div id="detail-result" class="glass-card p-0" style="display:none">
-                <div class="table-responsive" style="max-height:500px">
-                    <table class="table table-sm table-hover mb-0" style="font-size:0.85rem">
-                        <thead class="table-light sticky-top"><tr><th>วันที่</th><th>ชื่อ</th><th>ประเภท</th><th class="text-end">รายได้</th></tr></thead>
-                        <tbody id="dt-tbody"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <div class="offcanvas offcanvas-bottom rounded-top-4" style="height:auto" tabindex="-1" id="offcanvasFilter">
-        <div class="offcanvas-header"><h5 class="offcanvas-title fw-bold">เลือกเดือนข้อมูล</h5><button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button></div>
-        <div class="offcanvas-body">
-            <div class="row g-2">
-                <div class="col-6"><label>ปี</label><select id="ov-year" class="form-select"></select></div>
-                <div class="col-6"><label>เดือน</label><select id="ov-month" class="form-select"></select></div>
-                <div class="col-12 mt-3"><button class="btn btn-primary w-100 rounded-pill" onclick="reloadOverviewData()">โหลดข้อมูล</button></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="btm-nav">
-        <div class="nav-item active" onclick="switchTab('overview', this)"><i class="bi bi-grid-fill"></i>ภาพรวม</div>
-        <div class="nav-item" onclick="switchTab('compare', this)"><i class="bi bi-bar-chart-line-fill"></i>เทียบ</div>
-        <div class="nav-item" onclick="switchTab('detail', this)"><i class="bi bi-search"></i>เจาะลึก</div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-    <script>
-        // --- SETUP ---
-        const API_URL = "https://script.google.com/macros/s/AKfycbwOwP-6GXY91XjKt-i5MlkKvimDhSRbcDQjcDupuuI3XlHyLv4R3WGcNYcKjW41Bqll4w/exec"; 
-        const API_KEY = "olXRtf48PTPC2xPvWRijfiooIiQCElQqQBdCeHlVhvVYWxpob1Az8uQol9Nc"; // ต้องตรงกับ GAS
-
-        let fullMeta = [], overviewCache = [];
-        let currentOvType = 'All';
-        let charts = {};
-        let filterCanvas;
-
-        window.onload = async function() {
-            filterCanvas = new bootstrap.Offcanvas('#offcanvasFilter');
-            const d = new Date();
-            const months = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
-            document.getElementById('header-date').innerText = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()+543}`;
-            
-            // Default Dates for local filter
-            let y = d.getFullYear(), m = d.getMonth();
-            // document.getElementById('local-start').valueAsDate = new Date(y, m, 1, 12); // ถ้าจะใช้ local date range
-            
-            await initMetadata();
-        };
-
-        // --- API CALLER ---
-        async function callApi(funcName, paramsObj = {}) {
-            const url = new URL(API_URL);
-            url.searchParams.append('key', API_KEY);
-            url.searchParams.append('func', funcName);
-            
-            // Convert params to fit original signatures
-            // Original functions expect specific arguments, we mapped them in GAS doGet
-            if (funcName === 'getOverviewData' || funcName === 'getDetailDataMultiSource') {
-                url.searchParams.append('criteria', JSON.stringify(paramsObj));
-            } else if (funcName === 'getCompareData') {
-                url.searchParams.append('days', paramsObj.days);
-                url.searchParams.append('criteria', JSON.stringify(paramsObj.criteria));
-            }
-
-            try {
-                const res = await fetch(url);
-                const json = await res.json();
-                if(json.status === 'error') throw new Error(json.message);
-                return json;
-            } catch (e) {
-                console.error(e);
-                Swal.fire('Error', e.message, 'error');
-                return null;
-            }
-        }
-
-        // --- LOGIC ---
-        async function initMetadata() {
-            document.getElementById('loader').style.display='flex';
-            const data = await callApi('getMetadata');
-            if(data) {
-                fullMeta = data.meta;
-                fillSelect('cp-type', data.types);
-                fillSelect('cp-div', data.divisions);
+        {/* --- DEEP DIVE TAB --- */}
+        {activeTab === 'deepdive' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 
-                // Fill Local Div Filter
-                let localDiv = document.getElementById('local-div');
-                data.divisions.forEach(d => { let opt=document.createElement('option'); opt.value=d; opt.text=d; localDiv.add(opt); });
+                {/* 1. Search Form */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <div className="flex items-center gap-2 mb-4 text-slate-800">
+                        <Search className="text-blue-600" />
+                        <h2 className="font-bold text-lg">ค้นหารายละเอียด (Deep Dive Search)</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* 1. Select Division First */}
+                        <div>
+                             <label className="block text-xs text-slate-500 mb-1">1. เลือกกอง/ภาค</label>
+                             <div className="relative">
+                                <Building2 className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                                <select 
+                                    className="w-full pl-9 p-2 border rounded-lg text-sm bg-slate-50 focus:bg-white transition-colors outline-none focus:border-blue-500" 
+                                    value={searchDivision} 
+                                    onChange={e => { setSearchDivision(e.target.value); setSearchStation(''); }}
+                                >
+                                    <option value="">-- เลือกกอง --</option>
+                                    {metaData.divisions.filter(d => d !== 'All').map(d => <option key={d} value={d}>{d}</option>)}
+                                </select>
+                             </div>
+                        </div>
 
-                let stations = [...new Set(fullMeta.map(m=>m.s))].sort();
-                fillSelect('dt-station', stations);
+                        {/* 2. Select Station (Filtered) */}
+                        <div>
+                             <label className="block text-xs text-slate-500 mb-1">2. เลือกสถานี (1 แห่ง)</label>
+                             <div className="relative">
+                                <MapPin className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                                <select 
+                                    className="w-full pl-9 p-2 border rounded-lg text-sm bg-slate-50 focus:bg-white transition-colors outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400" 
+                                    value={searchStation} 
+                                    onChange={e => setSearchStation(e.target.value)}
+                                    disabled={!searchDivision}
+                                >
+                                    <option value="">{searchDivision ? '-- เลือกสถานี --' : 'กรุณาเลือกกองก่อน'}</option>
+                                    {filteredStations.map(s => <option key={s} value={s}>{cleanStationName(s)}</option>)}
+                                </select>
+                             </div>
+                        </div>
+                        
+                        {/* Dates */}
+                        <div>
+                             <label className="block text-xs text-slate-500 mb-1">วันที่เริ่ม</label>
+                             <input type="date" className="w-full p-2 border rounded-lg text-sm" value={searchStart} onChange={e=>setSearchStart(e.target.value)} />
+                        </div>
+                        <div>
+                             <label className="block text-xs text-slate-500 mb-1">วันที่สิ้นสุด</label>
+                             <input type="date" className="w-full p-2 border rounded-lg text-sm" value={searchEnd} onChange={e=>setSearchEnd(e.target.value)} />
+                        </div>
+                        
+                        <div className="lg:col-span-4 mt-2">
+                            <button 
+                                onClick={handleSearchDetail} 
+                                disabled={!searchStation}
+                                className="w-full bg-indigo-600 text-white p-2.5 rounded-lg font-medium hover:bg-indigo-700 disabled:bg-slate-300 transition-colors shadow-sm flex justify-center items-center gap-2"
+                            >
+                                <Search size={18} />
+                                ค้นหาข้อมูลเจาะลึก
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
-                let years = [...new Set(fullMeta.map(m=>m.y))];
-                let months = [...new Set(fullMeta.map(m=>m.m))];
-                updateSelect('ov-year', years, new Date().getFullYear());
-                updateSelect('ov-month', months, new Date().getMonth()+1);
+                {deepDiveData && (
+                    <>
+                        {/* 2. Summary Comparison Chart */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                                <h3 className="font-bold text-slate-800 mb-1">สัดส่วนรายได้รวม</h3>
+                                <p className="text-xs text-slate-500 mb-4">เปรียบเทียบ พนักงาน vs จุดจอด (ช่วงวันที่เลือก)</p>
+                                <div className="h-[250px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={sourceComparisonData}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                            <XAxis dataKey="name" tick={{fontSize: 12}} />
+                                            <YAxis tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
+                                            <RechartsTooltip formatter={(val) => formatCurrency(val)} />
+                                            <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
+                                                {sourceComparisonData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
 
-                await reloadOverviewData();
-            }
-            document.getElementById('loader').style.display='none';
-        }
+                            {/* 3. Detailed Checklist Table */}
+                            <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                                <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
+                                    <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                                        <CalendarDays size={18} className="text-indigo-500" />
+                                        ตารางผลการปฏิบัติงานรายวัน
+                                    </h3>
+                                    <div className="flex gap-4 text-xs">
+                                        <span className="flex items-center gap-1 text-green-700"><CheckCircle2 size={14} /> เกินเป้า</span>
+                                        <span className="flex items-center gap-1 text-red-700"><AlertCircle size={14} /> ต่ำเป้า</span>
+                                    </div>
+                                </div>
+                                
+                                <div className="overflow-auto custom-scrollbar flex-1">
+                                    <table className="w-full text-sm border-collapse">
+                                        <thead className="bg-slate-50 text-slate-500 sticky top-0 z-10 shadow-sm">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left font-medium min-w-[150px] bg-slate-50 border-b">รายชื่อ / จุดจอด</th>
+                                                {deepDiveData.days.map(d => (
+                                                    <th key={d} className="px-2 py-3 text-center min-w-[60px] bg-slate-50 border-b">
+                                                        <div className="text-xs">{new Date(d).getDate()}</div>
+                                                        <div className="text-[10px] uppercase">{new Date(d).toLocaleDateString('en-US', {weekday: 'short'})}</div>
+                                                    </th>
+                                                ))}
+                                                <th className="px-4 py-3 text-right font-medium min-w-[100px] bg-slate-50 border-b">รวม</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {/* Employees Section */}
+                                            <tr className="bg-slate-50/50">
+                                                <td colSpan={deepDiveData.days.length + 2} className="px-4 py-2 text-xs font-bold text-indigo-600 uppercase tracking-wider">
+                                                    พนักงาน (Employees)
+                                                </td>
+                                            </tr>
+                                            {deepDiveData.employees.map((emp, i) => (
+                                                <tr key={`e-${i}`} className="hover:bg-indigo-50/30 transition-colors">
+                                                    <td className="px-4 py-3 font-medium text-slate-700 border-r border-slate-100">
+                                                        <div className="flex items-center gap-2">
+                                                            <User size={14} className="text-slate-400" />
+                                                            {emp.name}
+                                                        </div>
+                                                    </td>
+                                                    {emp.dailyData.map((day, idx) => (
+                                                        <td key={idx} className="px-2 py-3 text-center border-r border-slate-50">
+                                                            {day.isOver ? (
+                                                                <CheckCircle2 size={18} className="mx-auto text-green-500" />
+                                                            ) : (
+                                                                <AlertCircle size={18} className="mx-auto text-red-500" />
+                                                            )}
+                                                            <div className="text-[10px] text-slate-400 mt-1">{formatCurrency(day.revenue).replace('฿','')}</div>
+                                                        </td>
+                                                    ))}
+                                                    <td className="px-4 py-3 text-right font-bold text-indigo-600">
+                                                        {formatCurrency(emp.totalRev)}
+                                                    </td>
+                                                </tr>
+                                            ))}
 
-        async function reloadOverviewData() {
-            document.getElementById('loader').style.display='flex';
-            filterCanvas.hide();
-            // Criteria เดิมจากโค้ดท่าน
-            const criteria = { 
-                group: 'Station', 
-                division: 'All', 
-                year: document.getElementById('ov-year').value, 
-                month: document.getElementById('ov-month').value, 
-                station: 'All' 
-            };
-            const data = await callApi('getOverviewData', criteria);
-            if(data) {
-                overviewCache = data;
-                applyLocalOverviewFilter();
-            }
-            document.getElementById('loader').style.display='none';
-        }
+                                            {/* Points Section */}
+                                            <tr className="bg-slate-50/50">
+                                                <td colSpan={deepDiveData.days.length + 2} className="px-4 py-2 text-xs font-bold text-teal-600 uppercase tracking-wider">
+                                                    จุดจอด / สถานี (Points)
+                                                </td>
+                                            </tr>
+                                            {deepDiveData.points.map((pt, i) => (
+                                                <tr key={`p-${i}`} className="hover:bg-teal-50/30 transition-colors">
+                                                    <td className="px-4 py-3 font-medium text-slate-700 border-r border-slate-100">
+                                                        <div className="flex items-center gap-2">
+                                                            <MapPin size={14} className="text-slate-400" />
+                                                            {pt.name}
+                                                        </div>
+                                                    </td>
+                                                    {pt.dailyData.map((day, idx) => (
+                                                        <td key={idx} className="px-2 py-3 text-center border-r border-slate-50">
+                                                             {day.isOver ? (
+                                                                <CheckCircle2 size={18} className="mx-auto text-green-500" />
+                                                            ) : (
+                                                                <AlertCircle size={18} className="mx-auto text-red-500" />
+                                                            )}
+                                                            <div className="text-[10px] text-slate-400 mt-1">{formatCurrency(day.revenue).replace('฿','')}</div>
+                                                        </td>
+                                                    ))}
+                                                    <td className="px-4 py-3 text-right font-bold text-teal-600">
+                                                        {formatCurrency(pt.totalRev)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+        )}
 
-        function applyLocalOverviewFilter() {
-            const fDiv = document.getElementById('local-div').value;
-            // Logic กรอง division แบบ Local (ตามโค้ดเดิม)
-            let filtered = overviewCache.filter(r => {
-                let meta = fullMeta.find(m => m.s === r.station);
-                let rowDiv = meta ? meta.d : 'Unknown';
-                return (fDiv === 'All') || (rowDiv === fDiv);
-            });
-            updateOverviewUI(filtered);
-        }
-
-        function setOverviewType(type, btn) {
-            currentOvType = type;
-            // Update UI Active State
-            let btns = document.getElementById('type-pills').getElementsByTagName('button');
-            for(let b of btns) b.classList.remove('active');
-            btn.classList.add('active');
-            applyLocalOverviewFilter();
-        }
-
-        function updateOverviewUI(data) {
-            // Logic เดิม: กรอง RevType ที่นี่
-            let finalData = data.filter(r => currentOvType === 'All' || r.revType.includes(currentOvType));
-
-            let rev=0, target=0;
-            finalData.forEach(r => { rev+=r.revenue; target+=r.target; });
-            let diff = rev - target;
-            let pct = target>0 ? ((diff/target)*100) : 0;
-
-            document.getElementById('kpi-rev').innerText = formatCurrency(rev);
-            document.getElementById('kpi-target').innerText = formatCurrency(target);
-            document.getElementById('kpi-diff').innerText = formatCurrency(diff);
-            document.getElementById('kpi-pct').innerText = (diff>=0?'+':'') + pct.toFixed(1) + '%';
-
-            let diffCard = document.getElementById('kpi-card-diff');
-            if(diff>=0) { diffCard.className = "glass-card d-flex justify-content-between align-items-center py-2 px-3 mb-0 text-pos"; }
-            else { diffCard.className = "glass-card d-flex justify-content-between align-items-center py-2 px-3 mb-0 text-neg"; }
-
-            renderTrend(finalData);
-            toggleRank('top', finalData);
-            renderTable(finalData);
-        }
-
-        // --- CHARTS & RENDERERS (Adapting same logic) ---
-        function renderTrend(data) {
-            let daily = {}; data.forEach(r => daily[r.day] = (daily[r.day]||0)+r.revenue);
-            let labels = Object.keys(daily).sort((a,b)=>a-b);
-            let ctx = document.getElementById('chart-trend').getContext('2d');
-            if(charts.trend) charts.trend.destroy();
-            charts.trend = new Chart(ctx, {
-                type: 'line',
-                data: { labels: labels, datasets:[{ label:'Revenue', data:labels.map(x=>daily[x]), borderColor:'#0d6efd', backgroundColor:'rgba(13,110,253,0.1)', fill:true, tension:0.4 }] },
-                options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}}, y:{ticks:{callback:v=>v/1000+'k'}}} }
-            });
-        }
-
-        function toggleRank(mode, dataOverride) {
-            let src = dataOverride || overviewCache.filter(r => currentOvType === 'All' || r.revType.includes(currentOvType));
-            let stats = {}; src.forEach(r => { 
-                let clean = cleanStationName(r.station);
-                if(!stats[clean]) stats[clean] = {rev:0, target:0}; 
-                stats[clean].rev += r.revenue; stats[clean].target += r.target;
-            });
-            let items = Object.entries(stats).map(([k,v]) => ({
-                name:k, rev:v.rev, 
-                pct: v.target>0 ? ((v.rev-v.target)/v.target*100) : -100
-            }));
-
-            if(mode==='pct') { items.sort((a,b) => b.pct - a.pct); document.getElementById('ranking-title').innerText="Top %"; }
-            else if(mode==='top') { items.sort((a,b) => b.rev - a.rev); document.getElementById('ranking-title').innerText="Top Rev"; }
-            else { items.sort((a,b) => a.rev - b.rev); document.getElementById('ranking-title').innerText="Low Rev"; }
-
-            items = items.slice(0, 15);
-            let ctx = document.getElementById('chart-rank').getContext('2d');
-            if(charts.rank) charts.rank.destroy();
-            charts.rank = new Chart(ctx, {
-                type: 'bar',
-                data: { labels: items.map(x=>x.name), datasets:[{ label: mode==='pct'?'%':'Rev', data: items.map(x=>mode==='pct'?x.pct:x.rev), backgroundColor: mode==='top'?'#0d6efd':(mode==='pct'?'#198754':'#dc3545'), borderRadius:4 }] },
-                options: { indexAxis: 'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}}} }
-            });
-        }
-
-        function renderTable(data) {
-            let tbody = document.getElementById('table-overview'); tbody.innerHTML='';
-            data.slice(0,30).forEach(r => {
-                let color = r.revenue>=r.target ? 'text-success':'text-danger';
-                tbody.innerHTML += `<tr><td>${r.day}</td><td>${cleanStationName(r.station)}</td><td class="text-end text-muted">${formatK(r.target)}</td><td class="text-end fw-bold ${color}">${formatCurrency(r.revenue)}</td></tr>`;
-            });
-        }
-
-        async function loadCompare() {
-            document.getElementById('loader').style.display='flex';
-            let crit = { group: 'Station', division: document.getElementById('cp-div').value, type: document.getElementById('cp-type').value };
-            let days = document.getElementById('cp-days').value;
-            let data = await callApi('getCompareData', { days: days, criteria: crit });
-            
-            document.getElementById('compare-result').style.display='block';
-            let ctx = document.getElementById('chart-compare').getContext('2d');
-            if(charts.compare) charts.compare.destroy();
-            charts.compare = new Chart(ctx, {
-                type: 'bar',
-                data: { labels: data.slice(0,15).map(x=>cleanStationName(x.station)), datasets:[{label:'Rev', data:data.slice(0,15).map(x=>x.revenue), backgroundColor:'#0d6efd'}] },
-                options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
-            });
-            document.getElementById('loader').style.display='none';
-        }
-
-        async function loadDetail() {
-            let st = document.getElementById('dt-station').value;
-            if(!st) return;
-            document.getElementById('loader').style.display='flex';
-            let crit = { division:'All', station:st, start:document.getElementById('dt-start').value, end:document.getElementById('dt-end').value };
-            let data = await callApi('getDetailDataMultiSource', crit);
-            
-            document.getElementById('detail-result').style.display='block';
-            let tbody = document.getElementById('dt-tbody'); tbody.innerHTML='';
-            if(data) {
-                data.forEach(r => {
-                    tbody.innerHTML += `<tr><td>${new Date(r.date).getDate()}/${new Date(r.date).getMonth()+1}</td><td>${r.name}</td><td>${r.revType}</td><td class="text-end fw-bold">${formatCurrency(r.revenue)}</td></tr>`;
-                });
-            }
-            document.getElementById('loader').style.display='none';
-        }
-
-        // --- UTILS ---
-        function switchTab(tab, el) {
-            document.querySelectorAll('.view-section').forEach(x=>x.style.display='none');
-            document.getElementById('view-'+tab).style.display='block';
-            document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
-            el.classList.add('active');
-            window.scrollTo(0,0);
-        }
-        function cleanStationName(name) { return name.replace('สถานีเดินรถ','').replace('สถานี','').trim(); }
-        function formatCurrency(n) { return n.toLocaleString('th-TH', {minimumFractionDigits:0, maximumFractionDigits:0}); }
-        function formatK(n) { return n>=1000?(n/1000).toFixed(0)+'k':n; }
-        function fillSelect(id, items) { let el=document.getElementById(id); items.forEach(v=>{let o=document.createElement('option'); o.value=v; o.text=v; el.add(o);}); }
-        function updateSelect(id, items, cur) { let el=document.getElementById(id); el.innerHTML=''; items.sort((a,b)=>b-a).forEach(v=>{let o=document.createElement('option'); o.value=v; o.text=v; el.add(o);}); if(cur) el.value=cur; }
-    </script>
-</body>
-</html>
+      </main>
+    </div>
+  );
+}
