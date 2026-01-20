@@ -1,745 +1,1259 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TCL Revenue Dashboard</title>
-    
-    <!-- 1. Styles (Tailwind CSS) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- 2. React, ReactDOM, Babel, PropTypes, Recharts -->
-    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
-    
-    <!-- Recharts (Stable Version for CDN) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.3/Recharts.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TCL Revenue Dashboard</title>
 
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
-        body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        
-        /* Loading & Error Styles */
-        #root:empty::before {
-            content: 'กำลังโหลดระบบ...';
-            display: block;
-            text-align: center;
-            padding-top: 50px;
-            color: #64748b;
-        }
-    </style>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Error Handling Script -->
-    <script>
-        window.onerror = function(msg, url, line, col, error) {
-            const root = document.getElementById('root');
-            root.innerHTML = `
-                <div style="padding: 20px; color: #dc2626; font-family: sans-serif; text-align: center;">
-                    <h3 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 10px;">เกิดข้อผิดพลาด (System Error)</h3>
-                    <p style="background: #fee2e2; padding: 10px; border-radius: 8px; display: inline-block;">${msg}</p>
-                    <p style="font-size: 0.875rem; color: #64748b; margin-top: 10px;">กรุณารีเฟรชหน้าจอ หรือตรวจสอบการเชื่อมต่ออินเทอร์เน็ต</p>
-                </div>
-            `;
-            console.error("Global Error:", error);
-            return false;
-        };
-    </script>
+  <!-- React, ReactDOM, Babel, PropTypes, Recharts -->
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.3/Recharts.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
+    body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+    #root:empty::before {
+      content: 'กำลังโหลดระบบ...';
+      display: block;
+      text-align: center;
+      padding-top: 50px;
+      color: #64748b;
+    }
+  </style>
+
+  <script>
+    window.onerror = function(msg, url, line, col, error) {
+      const root = document.getElementById('root');
+      root.innerHTML = `
+        <div style="padding: 20px; color: #dc2626; font-family: sans-serif; text-align: center;">
+          <h3 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 10px;">เกิดข้อผิดพลาด (System Error)</h3>
+          <p style="background: #fee2e2; padding: 10px; border-radius: 8px; display: inline-block;">${msg}</p>
+          <p style="font-size: 0.875rem; color: #64748b; margin-top: 10px;">กรุณารีเฟรชหน้าจอ หรือตรวจสอบการเชื่อมต่ออินเทอร์เน็ต</p>
+        </div>
+      `;
+      console.error("Global Error:", error);
+      return false;
+    };
+  </script>
 </head>
 <body>
-    
-    <div id="root"></div>
+  <div id="root"></div>
 
-    <script type="text/babel">
-        // Safety Check
-        if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || typeof Recharts === 'undefined') {
-            throw new Error("ไม่สามารถโหลดไลบรารีที่จำเป็นได้ (React/Recharts failed to load)");
+  <script type="text/babel">
+    if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || typeof Recharts === 'undefined') {
+      throw new Error("ไม่สามารถโหลดไลบรารีที่จำเป็นได้ (React/Recharts failed to load)");
+    }
+
+    const { useState, useEffect, useMemo } = React;
+    const {
+      BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+      LineChart, Line, Cell, LabelList
+    } = Recharts;
+
+    // --- ICONS ---
+    const Icon = ({ path, size = 24, className = "" }) => (
+      <svg xmlns="http://www.w3.org/2000/svg"
+        width={size} height={size} viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" strokeWidth="2"
+        strokeLinecap="round" strokeLinejoin="round"
+        className={className}
+        dangerouslySetInnerHTML={{ __html: path }}
+      />
+    );
+
+    const Icons = {
+      LayoutDashboard: (p) => <Icon {...p} path='<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>' />,
+      TrendingUp: (p) => <Icon {...p} path='<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>' />,
+      TrendingDown: (p) => <Icon {...p} path='<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>' />,
+      Target: (p) => <Icon {...p} path='<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>' />,
+      Filter: (p) => <Icon {...p} path='<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>' />,
+      User: (p) => <Icon {...p} path='<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>' />,
+      MapPin: (p) => <Icon {...p} path='<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>' />,
+      Search: (p) => <Icon {...p} path='<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>' />,
+      AlertCircle: (p) => <Icon {...p} path='<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>' />,
+      CheckCircle2: (p) => <Icon {...p} path='<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>' />,
+      MinusCircle: (p) => <Icon {...p} path='<circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/>' />,
+      DollarSign: (p) => <Icon {...p} path='<line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>' />,
+      Loader2: (p) => <Icon {...p} className={`animate-spin ${p.className||''}`} path='<path d="M21 12a9 9 0 1 1-6.219-8.56"/>' />,
+      BarChart2: (p) => <Icon {...p} path='<line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>' />,
+      Building2: (p) => <Icon {...p} path='<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>' />,
+      CalendarDays: (p) => <Icon {...p} path='<rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>' />
+    };
+
+    // --- API SETTINGS ---
+    const API_URL = "https://script.google.com/macros/s/AKfycbwDf3UksmATYdmKUQfEXsmDKCVjcVrr_vXl8p_kWbuBaXq3vk_3g1le0tqmdUX6njF7FA/exec";
+    const API_KEY = "olXRtf48PTPC2xPvWRijfiooIiQCElQqQBdCeHlVhvVYWxpob1Az8uQol9Nc";
+
+    // --- HELPERS ---
+    const pad2 = (n) => String(n).padStart(2, '0');
+
+    const isoToLocalDate = (iso) => {
+      const [y,m,d] = String(iso).split('-').map(Number);
+      return new Date(y, (m||1)-1, d||1, 12, 0, 0);
+    };
+    const toISODateLocal = (d) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+
+    const addDaysISO = (iso, days) => {
+      const d = isoToLocalDate(iso);
+      d.setDate(d.getDate() + days);
+      return toISODateLocal(d);
+    };
+
+    const thWeekdays = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+    const formatDMY = (iso) => {
+      const d = isoToLocalDate(iso);
+      return `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()}`;
+    };
+    const weekdayTH = (iso) => thWeekdays[isoToLocalDate(iso).getDay()];
+
+    const getMondayISO = (refDate = new Date()) => {
+      const d = new Date(refDate);
+      d.setHours(12,0,0,0);
+      const day = d.getDay(); // 0 Sun ... 6 Sat
+      const diff = (day === 0) ? -6 : (1 - day);
+      d.setDate(d.getDate() + diff);
+      return toISODateLocal(d);
+    };
+
+    const formatCurrency = (num) => new Intl.NumberFormat('th-TH', {
+      style: 'currency', currency: 'THB', maximumFractionDigits: 0
+    }).format(Number(num || 0));
+
+    const formatCompact = (num) => {
+      const v = Number(num || 0);
+      if (Math.abs(v) >= 1_000_000) return `${(v/1_000_000).toFixed(1)}M`;
+      if (Math.abs(v) >= 1_000) return `${(v/1_000).toFixed(0)}k`;
+      return String(Math.round(v));
+    };
+
+    const cleanStationName = (name) => name ? String(name).replace('สถานีเดินรถ','').replace('สถานี','').trim() : '';
+
+    const getDaysArray = (start, end) => {
+      const s = isoToLocalDate(start);
+      const e = isoToLocalDate(end);
+      const arr = [];
+      for (let dt = new Date(s); dt <= e; dt.setDate(dt.getDate() + 1)) {
+        arr.push(toISODateLocal(dt));
+      }
+      return arr;
+    };
+
+    // Overview-only helpers (จากโค้ดภาพรวมชุดแรก)
+    const monthStartISO = (y, m) => toISODateLocal(new Date(y, m-1, 1, 12,0,0));
+    const monthEndISO = (y, m) => toISODateLocal(new Date(y, m, 0, 12,0,0)); // day 0 of next month
+    const clampEndToYesterday = (iso) => {
+      const end = isoToLocalDate(iso);
+      const yest = new Date(); yest.setDate(yest.getDate() - 1); yest.setHours(12,0,0,0);
+      if (end > yest) return toISODateLocal(yest);
+      return iso;
+    };
+
+    const deltaClass = (v) => {
+      const n = Number(v || 0);
+      if (n > 0) return 'text-green-700 font-bold';
+      if (n < 0) return 'text-red-600 font-bold';
+      return 'text-slate-500 font-medium';
+    };
+
+    const fetchApi = async (funcName, paramsObj = {}) => {
+      const url = new URL(API_URL);
+      url.searchParams.append('key', API_KEY);
+      url.searchParams.append('func', funcName);
+
+      if (funcName === 'getOverviewData' || funcName === 'getDetailDataMultiSource') {
+        url.searchParams.append('criteria', JSON.stringify(paramsObj));
+      } else if (funcName === 'getCompareData') {
+        url.searchParams.append('days', String(paramsObj.days || 7));
+        url.searchParams.append('criteria', JSON.stringify(paramsObj.criteria || {}));
+      }
+
+      try {
+        const res = await fetch(url);
+        const json = await res.json();
+        if (json && json.status === 'error') throw new Error(json.message);
+        return json;
+      } catch (e) {
+        console.error("API Error:", e);
+        return null;
+      }
+    };
+
+    // --- COMPONENTS ---
+    const StatCard = ({ title, value, subValue, icon: IconComp, colorClass, trend }) => (
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-start justify-between hover:shadow-md transition-shadow">
+        <div>
+          <p className="text-slate-500 text-sm font-medium mb-1">{title}</p>
+          <h3 className="text-2xl font-bold text-slate-800">{value}</h3>
+          {subValue && (
+            <p className={`text-sm mt-2 flex items-center gap-1 ${trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-slate-400'}`}>
+              {trend === 'up' ? <Icons.TrendingUp size={14} /> : trend === 'down' ? <Icons.TrendingDown size={14} /> : null}
+              {subValue}
+            </p>
+          )}
+        </div>
+        <div className={`p-3 rounded-lg ${colorClass} bg-opacity-10`}>
+          <IconComp size={24} className={colorClass.replace('bg-', 'text-')} />
+        </div>
+      </div>
+    );
+
+    // --- MAIN APP ---
+    function RevenueDashboard() {
+      const [activeTab, setActiveTab] = useState('overview');
+      const [loading, setLoading] = useState(true);
+
+      const [metaData, setMetaData] = useState({ years: [], months: [], divisions: [], types: [], stations: [], rawMeta: [] });
+
+      // Overview filters
+      const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+      const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+      const [selectedDivision, setSelectedDivision] = useState('All');
+      const [selectedType, setSelectedType] = useState('All');
+
+      // NEW: Overview date range (จากโค้ดภาพรวมชุดแรก)
+      const [overviewStart, setOverviewStart] = useState(() => monthStartISO(new Date().getFullYear(), new Date().getMonth()+1));
+      const [overviewEnd, setOverviewEnd] = useState(() => clampEndToYesterday(monthEndISO(new Date().getFullYear(), new Date().getMonth()+1)));
+
+      const [overviewData, setOverviewData] = useState([]);
+
+      // Compare (weekly range, Monday start)
+      const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+      const defaultWeekStart = getMondayISO(yesterday);
+      const [compareWeekStart, setCompareWeekStart] = useState(defaultWeekStart);
+      const compareWeekEnd = useMemo(() => addDaysISO(compareWeekStart, 6), [compareWeekStart]);
+
+      const [compareDivision, setCompareDivision] = useState('All');
+      const [compareType, setCompareType] = useState('All');
+      const [compareRows, setCompareRows] = useState([]);
+      const [compareRange, setCompareRange] = useState(null);
+      const [compareError, setCompareError] = useState('');
+
+      // Deep dive
+      const todayISO = toISODateLocal(new Date());
+      const [searchDivision, setSearchDivision] = useState('');
+      const [searchStation, setSearchStation] = useState('');
+      const [searchStart, setSearchStart] = useState(todayISO);
+      const [searchEnd, setSearchEnd] = useState(todayISO);
+      const [deepDiveData, setDeepDiveData] = useState(null);
+      const [deepDiveError, setDeepDiveError] = useState('');
+
+      // init
+      useEffect(() => {
+        const init = async () => {
+          setLoading(true);
+          try {
+            const data = await fetchApi('getMetadata');
+            if (data) {
+              const uniqueYears = [...new Set(data.meta.map(m => m.y))].sort((a, b) => b - a);
+              const uniqueMonths = [...new Set(data.meta.map(m => m.m))].sort((a, b) => a - b);
+              const uniqueStations = [...new Set(data.meta.map(m => m.s))].sort();
+
+              setMetaData({
+                years: uniqueYears,
+                months: uniqueMonths,
+                divisions: ['All', ...data.divisions],
+                types: ['All', ...data.types],
+                stations: uniqueStations,
+                rawMeta: data.meta
+              });
+
+              const y0 = uniqueYears.includes(new Date().getFullYear()) ? new Date().getFullYear() : (uniqueYears[0] || new Date().getFullYear());
+              const m0 = uniqueMonths.includes(new Date().getMonth()+1) ? new Date().getMonth()+1 : (uniqueMonths[0] || new Date().getMonth()+1);
+
+              setSelectedYear(y0);
+              setSelectedMonth(m0);
+
+              // default overview range = whole month (clamp end to yesterday)
+              const s0 = monthStartISO(y0, m0);
+              const e0 = clampEndToYesterday(monthEndISO(y0, m0));
+              setOverviewStart(s0);
+              setOverviewEnd(e0);
+
+              await loadOverview(y0, m0);
+            }
+          } catch (err) {
+            console.error("Init Error:", err);
+          } finally {
+            setLoading(false);
+          }
+        };
+        init();
+      }, []);
+
+      const loadOverview = async (y, m) => {
+        setLoading(true);
+        try {
+          const criteria = { group: 'Station', division: 'All', year: y, month: m, station: 'All' };
+          const data = await fetchApi('getOverviewData', criteria);
+          if (Array.isArray(data)) setOverviewData(data);
+          else setOverviewData([]);
+        } catch (e) {
+          console.error("Load Overview Error", e);
+          setOverviewData([]);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const onChangeMonthYear = (newY, newM) => {
+        setSelectedYear(newY);
+        setSelectedMonth(newM);
+
+        const s = monthStartISO(newY, newM);
+        const e = clampEndToYesterday(monthEndISO(newY, newM));
+        setOverviewStart(s);
+        setOverviewEnd(e);
+      };
+
+      const processedOverview = useMemo(() => {
+        let filtered = overviewData || [];
+
+        // station -> division filter
+        if (selectedDivision !== 'All') {
+          filtered = filtered.filter(item => {
+            const meta = metaData.rawMeta.find(m => m.s === item.station);
+            return meta && meta.d === selectedDivision;
+          });
         }
 
-        const { useState, useEffect, useMemo } = React;
-        const { 
-            BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-            LineChart, Line, AreaChart, Area, Cell 
-        } = Recharts;
+        // type filter
+        if (selectedType !== 'All') {
+          filtered = filtered.filter(item => item.revType === selectedType);
+        }
 
-        // --- ICONS CONFIGURATION (Inline SVG) ---
-        const Icon = ({ path, size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} dangerouslySetInnerHTML={{ __html: path }} />
-        );
+        // date range filter (based on item.date ms)
+        const startMs = isoToLocalDate(overviewStart).getTime();
+        const endMs = isoToLocalDate(overviewEnd).getTime();
+        filtered = filtered.filter(item => Number(item.date) >= startMs && Number(item.date) <= endMs);
 
-        const Icons = {
-            LayoutDashboard: (p) => <Icon {...p} path='<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>' />,
-            TrendingUp: (p) => <Icon {...p} path='<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>' />,
-            TrendingDown: (p) => <Icon {...p} path='<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>' />,
-            Target: (p) => <Icon {...p} path='<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>' />,
-            Filter: (p) => <Icon {...p} path='<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>' />,
-            User: (p) => <Icon {...p} path='<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>' />,
-            MapPin: (p) => <Icon {...p} path='<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>' />,
-            Search: (p) => <Icon {...p} path='<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>' />,
-            AlertCircle: (p) => <Icon {...p} path='<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>' />,
-            CheckCircle2: (p) => <Icon {...p} path='<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>' />,
-            DollarSign: (p) => <Icon {...p} path='<line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>' />,
-            Loader2: (p) => <Icon {...p} className={`animate-spin ${p.className||''}`} path='<path d="M21 12a9 9 0 1 1-6.219-8.56"/>' />,
-            BarChart2: (p) => <Icon {...p} path='<line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>' />,
-            Building2: (p) => <Icon {...p} path='<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>' />,
-            CalendarDays: (p) => <Icon {...p} path='<rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>' />
+        // compute actual min/max date from data (for display)
+        let minISO = null, maxISO = null;
+        if (filtered.length > 0) {
+          const dates = filtered.map(x => Number(x.date)).filter(Boolean).sort((a,b)=>a-b);
+          const minD = new Date(dates[0]); minD.setHours(12,0,0,0);
+          const maxD = new Date(dates[dates.length-1]); maxD.setHours(12,0,0,0);
+          minISO = toISODateLocal(minD);
+          maxISO = toISODateLocal(maxD);
+        }
+
+        const totalRev = filtered.reduce((acc, curr) => acc + (curr.revenue || 0), 0);
+        const totalTarget = filtered.reduce((acc, curr) => acc + (curr.target || 0), 0);
+        const percent = totalTarget > 0 ? (totalRev / totalTarget) * 100 : 0;
+
+        const stationStats = {};
+        const dailyStats = {};
+
+        filtered.forEach(item => {
+          if (!stationStats[item.station]) stationStats[item.station] = { name: item.station, revenue: 0, target: 0 };
+          stationStats[item.station].revenue += item.revenue || 0;
+          stationStats[item.station].target += item.target || 0;
+
+          if (!dailyStats[item.day]) dailyStats[item.day] = { day: item.day, revenue: 0, target: 0 };
+          dailyStats[item.day].revenue += item.revenue || 0;
+          dailyStats[item.day].target += item.target || 0;
+        });
+
+        const stationsArr = Object.values(stationStats).sort((a,b)=>b.revenue-a.revenue);
+        const overTargetCount = stationsArr.filter(s => s.revenue >= s.target).length;
+        const underTargetCount = stationsArr.filter(s => s.revenue < s.target).length;
+
+        const trendData = Object.values(dailyStats).sort((a,b)=>a.day-b.day);
+
+        return {
+          totalRev, totalTarget, percent,
+          overTargetCount, underTargetCount,
+          stationsArr, trendData,
+          minISO, maxISO
+        };
+      }, [overviewData, selectedDivision, selectedType, metaData, overviewStart, overviewEnd]);
+
+      // Compare UI: lock Monday
+      const onChangeCompareStart = (iso) => {
+        const chosen = isoToLocalDate(iso);
+        const mondayIso = getMondayISO(chosen);
+        setCompareWeekStart(mondayIso);
+      };
+
+      const loadCompare = async () => {
+        setLoading(true);
+        setCompareError('');
+        setCompareRows([]);
+        setCompareRange(null);
+
+        try {
+          const criteria = {
+            group: 'Station',
+            division: compareDivision,
+            type: compareType,
+            start: compareWeekStart,
+            end: compareWeekEnd
+          };
+
+          const res = await fetchApi('getCompareData', { days: 7, criteria });
+          if (!res) throw new Error('API ไม่ตอบกลับ (getCompareData)');
+
+          if (Array.isArray(res)) {
+            setCompareRows(res);
+          } else if (res && Array.isArray(res.rows)) {
+            setCompareRows(res.rows);
+            setCompareRange(res.range || null);
+          } else {
+            throw new Error('รูปแบบข้อมูล Compare ไม่ถูกต้อง');
+          }
+
+        } catch (e) {
+          console.error(e);
+          setCompareError(e.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลเปรียบเทียบ');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const filteredStations = useMemo(() => {
+        if (!searchDivision) return [];
+        const relevantMeta = metaData.rawMeta.filter(m => m.d === searchDivision);
+        return [...new Set(relevantMeta.map(m => m.s))].sort();
+      }, [searchDivision, metaData]);
+
+      // ---- Deep dive parsing ----
+      const classifyEntity = (row) => {
+        const empType = String(row.empType || '').trim().toLowerCase();
+        const name = String(row.name || '').trim();
+
+        const isEmployee =
+          empType.includes('พนักงาน') || empType.includes('พนง') || empType.includes('จนท') ||
+          empType.includes('staff') || empType.includes('employee') || empType.includes('emp');
+
+        const isPoint =
+          empType.includes('จุดจอด') || empType.includes('จุด') || empType.includes('ตู้') ||
+          empType.includes('ช่องทาง') || empType.includes('point') ||
+          name.includes('ช่องทาง') || name.includes('ตู้') || name.includes('จุด');
+
+        if (isEmployee && !isPoint) return { bucket: 'employee', key: name || 'ไม่ระบุชื่อ' };
+        if (isPoint && !isEmployee) return { bucket: 'point', key: name || 'ไม่ระบุจุดจอด' };
+
+        if (name.includes('ช่องทาง') || name.includes('ตู้') || name.includes('จุด')) {
+          return { bucket: 'point', key: name || 'ไม่ระบุจุดจอด' };
+        }
+        return { bucket: 'employee', key: name || 'ไม่ระบุชื่อ' };
+      };
+
+      const buildDeepDive = (rows, start, end) => {
+        const days = getDaysArray(start, end);
+        const empMap = new Map();
+        const pointMap = new Map();
+
+        const msToLocalISO = (ms) => {
+          const d = new Date(ms);
+          d.setHours(12,0,0,0);
+          return toISODateLocal(d);
         };
 
-        // --- GLOBAL SETTINGS ---
-        const API_URL = "https://script.google.com/macros/s/AKfycbwOwP-6GXY91XjKt-i5MlkKvimDhSRbcDQjcDupuuI3XlHyLv4R3WGcNYcKjW41Bqll4w/exec";
-        const API_KEY = "olXRtf48PTPC2xPvWRijfiooIiQCElQqQBdCeHlVhvVYWxpob1Az8uQol9Nc";
+        rows.forEach(r => {
+          const dateISO = msToLocalISO(r.date);
+          if (!dateISO) return;
 
-        // --- HELPERS ---
-        const formatCurrency = (num) => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }).format(num || 0);
-        const cleanStationName = (name) => name ? name.replace('สถานีเดินรถ', '').replace('สถานี', '').trim() : '';
-        const getDaysArray = (start, end) => {
-            const arr = [];
-            for(let dt=new Date(start); dt<=new Date(end); dt.setDate(dt.getDate()+1)){
-                arr.push(new Date(dt).toISOString().split('T')[0]);
-            }
-            return arr;
-        };
+          const rev = Number(r.revenue || 0);
+          const tgt = Number(r.target || 0);
 
-        const fetchApi = async (funcName, paramsObj = {}) => {
-            const url = new URL(API_URL);
-            url.searchParams.append('key', API_KEY);
-            url.searchParams.append('func', funcName);
+          const { bucket, key } = classifyEntity(r);
+          const map = bucket === 'employee' ? empMap : pointMap;
 
-            if (funcName === 'getOverviewData' || funcName === 'getDetailDataMultiSource') {
-                url.searchParams.append('criteria', JSON.stringify(paramsObj));
-            } else if (funcName === 'getCompareData') {
-                url.searchParams.append('days', paramsObj.days);
-                url.searchParams.append('criteria', JSON.stringify(paramsObj.criteria));
-            }
+          if (!map.has(key)) map.set(key, { type: bucket, name: key, dailyMap: {} });
+          const ent = map.get(key);
 
-            try {
-                const res = await fetch(url);
-                const json = await res.json();
-                if (json.status === 'error') throw new Error(json.message);
-                return json;
-            } catch (e) {
-                console.error("API Error:", e);
-                // ไม่ throw error เพื่อไม่ให้หน้าจอพัง ให้ return null แทน
-                return null;
-            }
-        };
+          if (!ent.dailyMap[dateISO]) ent.dailyMap[dateISO] = { date: dateISO, revenue: 0, target: 0 };
+          ent.dailyMap[dateISO].revenue += rev;
+          ent.dailyMap[dateISO].target += tgt;
+        });
 
-        const generateDetailedPerformance = (startDate, endDate) => {
-            const days = getDaysArray(startDate, endDate);
-            
-            const employees = Array.from({ length: 5 }, (_, i) => {
-                const name = `จนท. ${String.fromCharCode(65 + i)}`;
-                const dailyData = days.map(date => {
-                    const target = 10000;
-                    const revenue = Math.floor(Math.random() * 15000) + 5000;
-                    return { date, revenue, target, isOver: revenue >= target };
-                });
-                const totalRev = dailyData.reduce((acc, c) => acc + c.revenue, 0);
-                return { type: 'employee', name, dailyData, totalRev };
+        const finalize = (map) => {
+          const arr = Array.from(map.values()).map(ent => {
+            const dailyData = days.map(d => {
+              const base = ent.dailyMap[d] || { date: d, revenue: 0, target: 0 };
+              let status = 'under';
+              if (Number(base.target || 0) <= 0) status = 'off';
+              else if (Number(base.revenue || 0) <= 0) status = 'zero';
+              else if (Number(base.revenue) >= Number(base.target)) status = 'over';
+              else status = 'under';
+
+              return { ...base, status };
             });
 
-            const points = Array.from({ length: 3 }, (_, i) => {
-                const name = `ช่องทาง/ตู้ ${i + 1}`;
-                const dailyData = days.map(date => {
-                    const target = 30000;
-                    const revenue = Math.floor(Math.random() * 40000) + 15000;
-                    return { date, revenue, target, isOver: revenue >= target };
-                });
-                const totalRev = dailyData.reduce((acc, c) => acc + c.revenue, 0);
-                return { type: 'point', name, dailyData, totalRev };
-            });
-
-            return { employees, points, days };
+            const totalRev = dailyData.reduce((a, c) => a + Number(c.revenue || 0), 0);
+            return { ...ent, dailyData, totalRev };
+          });
+          arr.sort((a, b) => b.totalRev - a.totalRev);
+          return arr;
         };
 
-        // --- COMPONENTS ---
-        const StatCard = ({ title, value, subValue, icon: IconComp, colorClass, trend }) => (
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-start justify-between hover:shadow-md transition-shadow">
-                <div>
-                    <p className="text-slate-500 text-sm font-medium mb-1">{title}</p>
-                    <h3 className="text-2xl font-bold text-slate-800">{value}</h3>
-                    {subValue && (
-                    <p className={`text-sm mt-2 flex items-center gap-1 ${trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-slate-400'}`}>
-                        {trend === 'up' ? <Icons.TrendingUp size={14} /> : trend === 'down' ? <Icons.TrendingDown size={14} /> : null}
-                        {subValue}
-                    </p>
-                    )}
-                </div>
-                <div className={`p-3 rounded-lg ${colorClass} bg-opacity-10`}>
-                    <IconComp size={24} className={colorClass.replace('bg-', 'text-')} />
-                </div>
+        return { employees: finalize(empMap), points: finalize(pointMap), days };
+      };
+
+      const handleSearchDetail = async () => {
+        if (!searchDivision || !searchStation || !searchStart || !searchEnd) return;
+
+        if (new Date(searchStart) > new Date(searchEnd)) {
+          setDeepDiveError('วันที่เริ่มต้องไม่มากกว่าวันที่สิ้นสุด');
+          return;
+        }
+
+        setLoading(true);
+        setDeepDiveError('');
+        setDeepDiveData(null);
+
+        try {
+          const criteria = {
+            division: searchDivision,
+            station: searchStation,
+            start: searchStart,
+            end: searchEnd
+          };
+
+          const res = await fetchApi('getDetailDataMultiSource', criteria);
+          if (!res || !Array.isArray(res) || res.length === 0) {
+            setDeepDiveError('ไม่พบข้อมูลเจาะลึกสำหรับเงื่อนไขที่เลือก');
+            return;
+          }
+
+          const dd = buildDeepDive(res, searchStart, searchEnd);
+          setDeepDiveData(dd);
+        } catch (e) {
+          console.error(e);
+          setDeepDiveError(e.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลเจาะลึก');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const sourceComparisonData = useMemo(() => {
+        if (!deepDiveData) return [];
+        const totalEmp = deepDiveData.employees.reduce((acc, c) => acc + (c.totalRev || 0), 0);
+        const totalPoint = deepDiveData.points.reduce((acc, c) => acc + (c.totalRev || 0), 0);
+        return [
+          { name: 'พนักงานรวม', revenue: totalEmp, fill: '#6366f1' },
+          { name: 'จุดจอดรวม', revenue: totalPoint, fill: '#14b8a6' }
+        ];
+      }, [deepDiveData]);
+
+      // Compare ranges (ใช้จาก API ถ้ามี เพื่อ “ดูจากข้อมูล”)
+      const displayCompareRange = useMemo(() => {
+        const currentStart = compareWeekStart;
+        const currentEnd = compareWeekEnd;
+        const prevStart = addDaysISO(currentStart, -7);
+        const prevEnd = addDaysISO(currentEnd, -7);
+
+        if (compareRange && compareRange.curStart && compareRange.curEnd && compareRange.prevStart && compareRange.prevEnd) {
+          return {
+            curStart: compareRange.curStart,
+            curEnd: compareRange.curEnd,
+            prevStart: compareRange.prevStart,
+            prevEnd: compareRange.prevEnd
+          };
+        }
+        return { curStart: currentStart, curEnd: currentEnd, prevStart, prevEnd };
+      }, [compareWeekStart, compareWeekEnd, compareRange]);
+
+      const compareChartInnerHeight = useMemo(() => {
+        const n = compareRows.length || 0;
+        return Math.max(280, (n * 28) + 120);
+      }, [compareRows]);
+
+      return (
+        <div className="min-h-screen pb-24">
+          {loading && (
+            <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
+              <Icons.Loader2 className="w-12 h-12 text-blue-600 mb-2" />
+              <span className="text-slate-600 font-medium">กำลังโหลดข้อมูล...</span>
             </div>
-        );
+          )}
 
-        // --- MAIN APP ---
-        function RevenueDashboard() {
-            const [activeTab, setActiveTab] = useState('overview');
-            const [loading, setLoading] = useState(true);
-            const [metaData, setMetaData] = useState({ years: [], months: [], divisions: [], types: [], stations: [], rawMeta: [] });
-            
-            // Filter States
-            const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-            const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-            const [selectedDivision, setSelectedDivision] = useState('All');
-            const [selectedType, setSelectedType] = useState('All');
-            
-            // Data States
-            const [overviewData, setOverviewData] = useState([]);
-            
-            // Deep Dive States
-            const [searchDivision, setSearchDivision] = useState('');
-            const [searchStation, setSearchStation] = useState('');
-            const [searchStart, setSearchStart] = useState(new Date().toISOString().split('T')[0]);
-            const [searchEnd, setSearchEnd] = useState(new Date().toISOString().split('T')[0]);
-            const [deepDiveData, setDeepDiveData] = useState(null);
+          {/* Header */}
+          <div className="bg-gradient-to-r from-blue-900 to-slate-900 text-white pb-8 rounded-b-[2rem] shadow-lg">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold flex items-center gap-2">
+                    <Icons.LayoutDashboard className="text-orange-500" />
+                    TCL Dashboard
+                  </h1>
+                  <p className="text-blue-200 text-sm mt-1">
+                    ข้อมูลประจำวันที่ {new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                </div>
+              </div>
 
-            // Compare States
-            const [compareDays, setCompareDays] = useState('7');
-            const [compareDivision, setCompareDivision] = useState('All');
-            const [compareType, setCompareType] = useState('All');
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {[
+                  { id: 'overview', label: 'ภาพรวม', icon: Icons.LayoutDashboard, kind: 'tab' },
+                  { id: 'compare', label: 'เปรียบเทียบ', icon: Icons.BarChart2, kind: 'tab' },
+                  { id: 'deepdive', label: 'เจาะลึก', icon: Icons.Search, kind: 'tab' },
+                  { id: 'mock', label: 'Dashboard(จำลอง)', icon: Icons.LayoutDashboard, kind: 'link', href: 'https://joymamy-cyber.github.io/TCL-Smart-Operation-2026/' }
+                ].map(tab => {
+                  const commonClass = `flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? 'bg-white text-blue-900 shadow-md'
+                      : 'bg-white/10 text-blue-100 hover:bg-white/20'
+                  }`;
 
-            useEffect(() => {
-                const init = async () => {
-                    setLoading(true);
-                    try {
-                        const data = await fetchApi('getMetadata');
-                        if (data) {
-                            const uniqueYears = [...new Set(data.meta.map(m => m.y))].sort((a, b) => b - a);
-                            const uniqueMonths = [...new Set(data.meta.map(m => m.m))].sort((a, b) => a - b);
-                            const uniqueStations = [...new Set(data.meta.map(m => m.s))].sort();
-                            
-                            setMetaData({
-                                years: uniqueYears,
-                                months: uniqueMonths,
-                                divisions: ['All', ...data.divisions],
-                                types: ['All', ...data.types],
-                                stations: uniqueStations,
-                                rawMeta: data.meta
-                            });
+                  if (tab.kind === 'link') {
+                    return (
+                      <a
+                        key={tab.id}
+                        href={tab.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={commonClass}
+                        title="เปิด Dashboard จำลองในแท็บใหม่"
+                      >
+                        <tab.icon size={16} />
+                        {tab.label}
+                      </a>
+                    );
+                  }
 
-                            if (uniqueYears.includes(new Date().getFullYear())) setSelectedYear(new Date().getFullYear());
-                            
-                            // Load initial data
-                            await loadOverview(new Date().getFullYear(), new Date().getMonth() + 1);
-                        }
-                    } catch (err) {
-                        console.error("Init Error:", err);
-                    } finally {
-                        setLoading(false);
-                    }
-                };
-                init();
-            }, []);
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={commonClass}
+                    >
+                      <tab.icon size={16} />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
-            const loadOverview = async (y, m) => {
-                setLoading(true);
-                try {
-                    const criteria = { group: 'Station', division: 'All', year: y, month: m, station: 'All' };
-                    const data = await fetchApi('getOverviewData', criteria);
-                    if (data) setOverviewData(data);
-                } catch(e) {
-                    console.error("Load Overview Error", e);
-                } finally {
-                    setLoading(false);
-                }
-            };
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6">
 
-            const processedOverview = useMemo(() => {
-                let filtered = overviewData || [];
-                if (selectedDivision !== 'All') {
-                    filtered = filtered.filter(item => {
-                        const meta = metaData.rawMeta.find(m => m.s === item.station);
-                        return meta && meta.d === selectedDivision;
-                    });
-                }
-                if (selectedType !== 'All') {
-                    filtered = filtered.filter(item => item.revType && item.revType.includes(selectedType));
-                }
+            {/* OVERVIEW (ตามโค้ดชุดแรก) */}
+            {activeTab === 'overview' && (
+              <div className="space-y-6">
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <Icons.Filter size={18} />
+                    <span className="text-sm font-medium">ตัวกรอง:</span>
+                  </div>
 
-                const totalRev = filtered.reduce((acc, curr) => acc + curr.revenue, 0);
-                const totalTarget = filtered.reduce((acc, curr) => acc + curr.target, 0);
-                const percent = totalTarget > 0 ? (totalRev / totalTarget) * 100 : 0;
-                
-                const stationStats = {};
-                const dailyStats = {};
+                  <div className="flex flex-wrap gap-2">
+                    {metaData.divisions.map(div => (
+                      <button
+                        key={div}
+                        onClick={() => setSelectedDivision(div)}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                          selectedDivision === div ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {div === 'All' ? 'ทั้งหมด' : div}
+                      </button>
+                    ))}
+                  </div>
 
-                filtered.forEach(item => {
-                    if (!stationStats[item.station]) stationStats[item.station] = { name: item.station, revenue: 0, target: 0 };
-                    stationStats[item.station].revenue += item.revenue;
-                    stationStats[item.station].target += item.target;
+                  <div className="w-px h-6 bg-slate-200 hidden md:block"></div>
 
-                    if (!dailyStats[item.day]) dailyStats[item.day] = { day: item.day, revenue: 0, target: 0 };
-                    dailyStats[item.day].revenue += item.revenue;
-                    dailyStats[item.day].target += item.target;
-                });
+                  <div className="flex gap-2">
+                    {metaData.types.map(type => (
+                      <button
+                        key={type}
+                        onClick={() => setSelectedType(type)}
+                        className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors ${
+                          selectedType === type ? 'border-orange-500 text-orange-600 bg-orange-50' : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                        }`}
+                      >
+                        {type === 'All' ? 'ทุกประเภท' : type}
+                      </button>
+                    ))}
+                  </div>
 
-                const stationsArr = Object.values(stationStats);
-                const overTargetCount = stationsArr.filter(s => s.revenue >= s.target).length;
-                const underTargetCount = stationsArr.filter(s => s.revenue < s.target).length;
-                const topStations = [...stationsArr].sort((a, b) => b.revenue - a.revenue).slice(0, 15);
-                const bottomStations = [...stationsArr].sort((a, b) => a.revenue - b.revenue).slice(0, 15);
-                
-                const trendData = Object.values(dailyStats).sort((a, b) => a.day - b.day);
-                let accRev = 0, accTarget = 0;
-                const accTrendData = trendData.map(d => {
-                    accRev += d.revenue;
-                    accTarget += d.target;
-                    return { ...d, accRev, accTarget };
-                });
-
-                return { totalRev, totalTarget, percent, overTargetCount, underTargetCount, topStations, bottomStations, stationsArr, accTrendData };
-            }, [overviewData, selectedDivision, selectedType, metaData]);
-
-            const handleSearchDetail = () => {
-                if(!searchDivision || !searchStation || !searchStart || !searchEnd) return;
-                setLoading(true);
-                setTimeout(() => {
-                    const mockDetails = generateDetailedPerformance(searchStart, searchEnd);
-                    setDeepDiveData(mockDetails);
-                    setLoading(false);
-                }, 600); 
-            };
-
-            const filteredStations = useMemo(() => {
-                if (!searchDivision) return [];
-                const relevantMeta = metaData.rawMeta.filter(m => m.d === searchDivision);
-                return [...new Set(relevantMeta.map(m => m.s))].sort();
-            }, [searchDivision, metaData]);
-
-            const sourceComparisonData = useMemo(() => {
-                if (!deepDiveData) return [];
-                const totalEmp = deepDiveData.employees.reduce((acc, c) => acc + c.totalRev, 0);
-                const totalPoint = deepDiveData.points.reduce((acc, c) => acc + c.totalRev, 0);
-                return [
-                    { name: 'พนักงานรวม', revenue: totalEmp, fill: '#6366f1' },
-                    { name: 'จุดจอดรวม', revenue: totalPoint, fill: '#14b8a6' }
-                ];
-            }, [deepDiveData]);
-
-            return (
-                <div className="min-h-screen pb-24">
-                    {/* Loading Overlay */}
-                    {loading && (
-                        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
-                            <Icons.Loader2 className="w-12 h-12 text-blue-600 mb-2" />
-                            <span className="text-slate-600 font-medium">กำลังโหลดข้อมูล...</span>
-                        </div>
-                    )}
-
-                    {/* Header */}
-                    <div className="bg-gradient-to-r from-blue-900 to-slate-900 text-white pb-8 rounded-b-[2rem] shadow-lg">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                            <div className="flex justify-between items-center mb-6">
-                                <div>
-                                    <h1 className="text-2xl font-bold flex items-center gap-2">
-                                        <Icons.LayoutDashboard className="text-orange-500" />
-                                        TCL Dashboard
-                                    </h1>
-                                    <p className="text-blue-200 text-sm mt-1">
-                                        ข้อมูลประจำวันที่ {new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}
-                                    </p>
-                                </div>
-                            </div>
-                            
-                            <div className="flex gap-2 overflow-x-auto pb-2">
-                                {[
-                                    { id: 'overview', label: 'ภาพรวม', icon: Icons.LayoutDashboard },
-                                    { id: 'compare', label: 'เปรียบเทียบ', icon: Icons.BarChart2 },
-                                    { id: 'deepdive', label: 'เจาะลึก', icon: Icons.Search }
-                                ].map(tab => (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => setActiveTab(tab.id)}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                                            activeTab === tab.id 
-                                            ? 'bg-white text-blue-900 shadow-md' 
-                                            : 'bg-white/10 text-blue-100 hover:bg-white/20'
-                                        }`}
-                                    >
-                                        <tab.icon size={16} />
-                                        {tab.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                  {/* Month/Year + Date Range */}
+                  <div className="ml-auto flex flex-wrap gap-2 items-end">
+                    <div>
+                      <label className="block text-[11px] text-slate-500 mb-1">เดือน</label>
+                      <select
+                        className="bg-slate-50 border border-slate-200 rounded-lg text-sm px-2 py-1 outline-none focus:border-blue-500"
+                        value={selectedMonth}
+                        onChange={(e) => onChangeMonthYear(selectedYear, Number(e.target.value))}
+                      >
+                        {metaData.months.map(m => <option key={m} value={m}>เดือน {m}</option>)}
+                      </select>
                     </div>
 
-                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6">
-                        
-                        {/* --- OVERVIEW TAB --- */}
-                        {activeTab === 'overview' && (
-                            <div className="space-y-6">
-                                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center gap-4">
-                                    <div className="flex items-center gap-2 text-slate-500">
-                                        <Icons.Filter size={18} />
-                                        <span className="text-sm font-medium">ตัวกรอง:</span>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {metaData.divisions.map(div => (
-                                            <button
-                                                key={div}
-                                                onClick={() => setSelectedDivision(div)}
-                                                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                                                    selectedDivision === div ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                                }`}
-                                            >
-                                                {div === 'All' ? 'ทั้งหมด' : div}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <div className="w-px h-6 bg-slate-200 hidden md:block"></div>
-                                    <div className="flex gap-2">
-                                        {metaData.types.map(type => (
-                                            <button
-                                                key={type}
-                                                onClick={() => setSelectedType(type)}
-                                                className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors ${
-                                                    selectedType === type ? 'border-orange-500 text-orange-600 bg-orange-50' : 'border-slate-200 text-slate-500 hover:border-slate-300'
-                                                }`}
-                                            >
-                                                {type === 'All' ? 'ทุกประเภท' : type}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <div className="ml-auto flex gap-2">
-                                        <select 
-                                            className="bg-slate-50 border border-slate-200 rounded-lg text-sm px-2 py-1 outline-none focus:border-blue-500"
-                                            value={selectedMonth}
-                                            onChange={(e) => { setSelectedMonth(Number(e.target.value)); }}
-                                        >
-                                            {metaData.months.map(m => <option key={m} value={m}>เดือน {m}</option>)}
-                                        </select>
-                                        <select 
-                                            className="bg-slate-50 border border-slate-200 rounded-lg text-sm px-2 py-1 outline-none focus:border-blue-500"
-                                            value={selectedYear}
-                                            onChange={(e) => { setSelectedYear(Number(e.target.value)); }}
-                                        >
-                                            {metaData.years.map(y => <option key={y} value={y}>{y + 543}</option>)}
-                                        </select>
-                                        <button 
-                                            onClick={() => loadOverview(selectedYear, selectedMonth)}
-                                            className="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-700"
-                                        >
-                                            โหลด
-                                        </button>
-                                    </div>
-                                </div>
+                    <div>
+                      <label className="block text-[11px] text-slate-500 mb-1">ปี</label>
+                      <select
+                        className="bg-slate-50 border border-slate-200 rounded-lg text-sm px-2 py-1 outline-none focus:border-blue-500"
+                        value={selectedYear}
+                        onChange={(e) => onChangeMonthYear(Number(e.target.value), selectedMonth)}
+                      >
+                        {metaData.years.map(y => <option key={y} value={y}>{y + 543}</option>)}
+                      </select>
+                    </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    <StatCard 
-                                        title="รายได้รวม (Actual)" 
-                                        value={formatCurrency(processedOverview.totalRev)} 
-                                        subValue={`${processedOverview.percent.toFixed(1)}% ของเป้าหมาย`}
-                                        trend={processedOverview.percent >= 100 ? 'up' : 'down'}
-                                        icon={Icons.DollarSign}
-                                        colorClass="bg-blue-500 text-blue-600"
-                                    />
-                                    <StatCard 
-                                        title="เป้าหมาย (Target)" 
-                                        value={formatCurrency(processedOverview.totalTarget)} 
-                                        subValue="เป้าหมายประจำเดือน"
-                                        trend="neutral"
-                                        icon={Icons.Target}
-                                        colorClass="bg-amber-500 text-amber-600"
-                                    />
-                                    <StatCard 
-                                        title="สถานีเกินเป้า" 
-                                        value={`${processedOverview.overTargetCount} แห่ง`}
-                                        subValue="ผลงานยอดเยี่ยม"
-                                        trend="up"
-                                        icon={Icons.CheckCircle2}
-                                        colorClass="bg-green-500 text-green-600"
-                                    />
-                                    <StatCard 
-                                        title="สถานีต่ำเป้า" 
-                                        value={`${processedOverview.underTargetCount} แห่ง`}
-                                        subValue="ต้องปรับปรุง"
-                                        trend="down"
-                                        icon={Icons.AlertCircle}
-                                        colorClass="bg-red-500 text-red-600"
-                                    />
-                                </div>
+                    <div className="w-px h-8 bg-slate-200 hidden lg:block"></div>
 
-                                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                                    <h3 className="text-lg font-bold text-slate-800 mb-1">แนวโน้มรายได้สะสม (Cumulative)</h3>
-                                    <div className="h-[300px]">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <AreaChart data={processedOverview.accTrendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                                                <defs>
-                                                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                                                    </linearGradient>
-                                                </defs>
-                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
-                                                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} tickFormatter={(v) => `${(v/1000000).toFixed(1)}M`} />
-                                                <Tooltip formatter={(val) => formatCurrency(val)} />
-                                                <Legend />
-                                                <Area type="monotone" dataKey="accTarget" name="เป้าสะสม" stroke="#94a3b8" strokeDasharray="5 5" fill="none" />
-                                                <Area type="monotone" dataKey="accRev" name="รายได้สะสม" stroke="#3b82f6" strokeWidth={3} fill="url(#colorRev)" />
-                                            </AreaChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
+                    <div>
+                      <label className="block text-[11px] text-slate-500 mb-1">วันที่เริ่ม</label>
+                      <input
+                        type="date"
+                        className="bg-slate-50 border border-slate-200 rounded-lg text-sm px-2 py-1 outline-none focus:border-blue-500"
+                        value={overviewStart}
+                        onChange={(e)=>setOverviewStart(e.target.value)}
+                      />
+                    </div>
 
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                                    <div className="p-4 bg-slate-50 border-b border-slate-200">
-                                        <h3 className="font-bold text-slate-700">รายการสรุปสถานะรายสถานี (Station Status)</h3>
-                                    </div>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm text-left">
-                                            <thead className="bg-slate-50 text-slate-500">
-                                                <tr>
-                                                    <th className="px-6 py-3 font-medium">สถานี</th>
-                                                    <th className="px-6 py-3 font-medium text-right">เป้าหมาย</th>
-                                                    <th className="px-6 py-3 font-medium text-right">รายได้จริง</th>
-                                                    <th className="px-6 py-3 font-medium text-center">สถานะ</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {processedOverview.stationsArr.sort((a,b)=>b.revenue-a.revenue).slice(0, 20).map((st, i) => {
-                                                    const isOver = st.revenue >= st.target;
-                                                    return (
-                                                        <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                                            <td className="px-6 py-3 font-medium text-slate-700">{cleanStationName(st.name)}</td>
-                                                            <td className="px-6 py-3 text-right text-slate-500 font-mono">{formatCurrency(st.target)}</td>
-                                                            <td className={`px-6 py-3 text-right font-bold font-mono ${isOver ? 'text-green-600' : 'text-red-600'}`}>
-                                                                {formatCurrency(st.revenue)}
-                                                            </td>
-                                                            <td className="px-6 py-3 text-center">
-                                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${isOver ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                                    {isOver ? 'เกินเป้า' : 'ต่ำเป้า'}
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                    <div>
+                      <label className="block text-[11px] text-slate-500 mb-1">วันที่สิ้นสุด</label>
+                      <input
+                        type="date"
+                        className="bg-slate-50 border border-slate-200 rounded-lg text-sm px-2 py-1 outline-none focus:border-blue-500"
+                        value={overviewEnd}
+                        onChange={(e)=>setOverviewEnd(e.target.value)}
+                      />
+                    </div>
 
-                        {activeTab === 'compare' && (
-                            <div className="space-y-6">
-                                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                                    <h2 className="text-lg font-bold text-slate-800 mb-4">เปรียบเทียบย้อนหลัง (Historical Comparison)</h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                                        <div>
-                                            <label className="block text-xs text-slate-500 mb-1">ภาค/กอง</label>
-                                            <select className="w-full p-2 border rounded-lg text-sm" value={compareDivision} onChange={e=>setCompareDivision(e.target.value)}>
-                                                {metaData.divisions.map(d => <option key={d} value={d}>{d}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-slate-500 mb-1">ประเภท</label>
-                                            <select className="w-full p-2 border rounded-lg text-sm" value={compareType} onChange={e=>setCompareType(e.target.value)}>
-                                                {metaData.types.map(t => <option key={t} value={t}>{t}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-slate-500 mb-1">ช่วงเวลา</label>
-                                            <select className="w-full p-2 border rounded-lg text-sm" value={compareDays} onChange={e=>setCompareDays(e.target.value)}>
-                                                <option value="7">7 วันล่าสุด</option>
-                                                <option value="15">15 วันล่าสุด</option>
-                                            </select>
-                                        </div>
-                                        <div className="flex items-end">
-                                            <button className="w-full bg-blue-600 text-white p-2 rounded-lg text-sm font-medium hover:bg-blue-700">
-                                                ประมวลผล
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 'deepdive' && (
-                            <div className="space-y-6">
-                                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                                    <div className="flex items-center gap-2 mb-4 text-slate-800">
-                                        <Icons.Search className="text-blue-600" />
-                                        <h2 className="font-bold text-lg">ค้นหารายละเอียด (Deep Dive Search)</h2>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                        <div>
-                                            <label className="block text-xs text-slate-500 mb-1">1. เลือกกอง/ภาค</label>
-                                            <div className="relative">
-                                                <Icons.Building2 className="absolute left-3 top-2.5 text-slate-400" size={16} />
-                                                <select 
-                                                    className="w-full pl-9 p-2 border rounded-lg text-sm bg-slate-50 focus:bg-white transition-colors outline-none focus:border-blue-500" 
-                                                    value={searchDivision} 
-                                                    onChange={e => { setSearchDivision(e.target.value); setSearchStation(''); }}
-                                                >
-                                                    <option value="">-- เลือกกอง --</option>
-                                                    {metaData.divisions.filter(d => d !== 'All').map(d => <option key={d} value={d}>{d}</option>)}
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-slate-500 mb-1">2. เลือกสถานี (1 แห่ง)</label>
-                                            <div className="relative">
-                                                <Icons.MapPin className="absolute left-3 top-2.5 text-slate-400" size={16} />
-                                                <select 
-                                                    className="w-full pl-9 p-2 border rounded-lg text-sm bg-slate-50 focus:bg-white transition-colors outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400" 
-                                                    value={searchStation} 
-                                                    onChange={e => setSearchStation(e.target.value)}
-                                                    disabled={!searchDivision}
-                                                >
-                                                    <option value="">{searchDivision ? '-- เลือกสถานี --' : 'กรุณาเลือกกองก่อน'}</option>
-                                                    {filteredStations.map(s => <option key={s} value={s}>{cleanStationName(s)}</option>)}
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-slate-500 mb-1">วันที่เริ่ม</label>
-                                            <input type="date" className="w-full p-2 border rounded-lg text-sm" value={searchStart} onChange={e=>setSearchStart(e.target.value)} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-slate-500 mb-1">วันที่สิ้นสุด</label>
-                                            <input type="date" className="w-full p-2 border rounded-lg text-sm" value={searchEnd} onChange={e=>setSearchEnd(e.target.value)} />
-                                        </div>
-                                        <div className="lg:col-span-4 mt-2">
-                                            <button 
-                                                onClick={handleSearchDetail} 
-                                                disabled={!searchStation}
-                                                className="w-full bg-indigo-600 text-white p-2.5 rounded-lg font-medium hover:bg-indigo-700 disabled:bg-slate-300 transition-colors shadow-sm flex justify-center items-center gap-2"
-                                            >
-                                                <Icons.Search size={18} />
-                                                ค้นหาข้อมูลเจาะลึก
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {deepDiveData && (
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                        <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                                            <h3 className="font-bold text-slate-800 mb-1">สัดส่วนรายได้รวม</h3>
-                                            <p className="text-xs text-slate-500 mb-4">เปรียบเทียบ พนักงาน vs จุดจอด</p>
-                                            <div className="h-[250px]">
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <BarChart data={sourceComparisonData}>
-                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                                        <XAxis dataKey="name" tick={{fontSize: 12}} />
-                                                        <YAxis tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
-                                                        <Tooltip formatter={(val) => formatCurrency(val)} />
-                                                        <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
-                                                            {sourceComparisonData.map((entry, index) => (
-                                                                <Cell key={`cell-${index}`} fill={entry.fill} />
-                                                            ))}
-                                                        </Bar>
-                                                    </BarChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                        </div>
-
-                                        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-                                            <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
-                                                <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                                                    <Icons.CalendarDays size={18} className="text-indigo-500" />
-                                                    ตารางผลการปฏิบัติงานรายวัน
-                                                </h3>
-                                                <div className="flex gap-4 text-xs">
-                                                    <span className="flex items-center gap-1 text-green-700"><Icons.CheckCircle2 size={14} /> เกินเป้า</span>
-                                                    <span className="flex items-center gap-1 text-red-700"><Icons.AlertCircle size={14} /> ต่ำเป้า</span>
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="overflow-auto custom-scrollbar flex-1">
-                                                <table className="w-full text-sm border-collapse">
-                                                    <thead className="bg-slate-50 text-slate-500 sticky top-0 z-10 shadow-sm">
-                                                        <tr>
-                                                            <th className="px-4 py-3 text-left font-medium min-w-[150px] bg-slate-50 border-b">รายชื่อ / จุดจอด</th>
-                                                            {deepDiveData.days.map(d => (
-                                                                <th key={d} className="px-2 py-3 text-center min-w-[60px] bg-slate-50 border-b">
-                                                                    <div className="text-xs">{new Date(d).getDate()}</div>
-                                                                    <div className="text-[10px] uppercase">{new Date(d).toLocaleDateString('en-US', {weekday: 'short'})}</div>
-                                                                </th>
-                                                            ))}
-                                                            <th className="px-4 py-3 text-right font-medium min-w-[100px] bg-slate-50 border-b">รวม</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-slate-100">
-                                                        <tr className="bg-slate-50/50">
-                                                            <td colSpan={deepDiveData.days.length + 2} className="px-4 py-2 text-xs font-bold text-indigo-600 uppercase tracking-wider">
-                                                                พนักงาน (Employees)
-                                                            </td>
-                                                        </tr>
-                                                        {deepDiveData.employees.map((emp, i) => (
-                                                            <tr key={`e-${i}`} className="hover:bg-indigo-50/30 transition-colors">
-                                                                <td className="px-4 py-3 font-medium text-slate-700 border-r border-slate-100">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <Icons.User size={14} className="text-slate-400" />
-                                                                        {emp.name}
-                                                                    </div>
-                                                                </td>
-                                                                {emp.dailyData.map((day, idx) => (
-                                                                    <td key={idx} className="px-2 py-3 text-center border-r border-slate-50">
-                                                                        {day.isOver ? (
-                                                                            <div className="flex justify-center"><Icons.CheckCircle2 size={18} className="text-green-500" /></div>
-                                                                        ) : (
-                                                                            <div className="flex justify-center"><Icons.AlertCircle size={18} className="text-red-500" /></div>
-                                                                        )}
-                                                                        <div className="text-[10px] text-slate-400 mt-1">{formatCurrency(day.revenue).replace('฿','')}</div>
-                                                                    </td>
-                                                                ))}
-                                                                <td className="px-4 py-3 text-right font-bold text-indigo-600">
-                                                                    {formatCurrency(emp.totalRev)}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-
-                                                        <tr className="bg-slate-50/50">
-                                                            <td colSpan={deepDiveData.days.length + 2} className="px-4 py-2 text-xs font-bold text-teal-600 uppercase tracking-wider">
-                                                                จุดจอด / สถานี (Points)
-                                                            </td>
-                                                        </tr>
-                                                        {deepDiveData.points.map((pt, i) => (
-                                                            <tr key={`p-${i}`} className="hover:bg-teal-50/30 transition-colors">
-                                                                <td className="px-4 py-3 font-medium text-slate-700 border-r border-slate-100">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <Icons.MapPin size={14} className="text-slate-400" />
-                                                                        {pt.name}
-                                                                    </div>
-                                                                </td>
-                                                                {pt.dailyData.map((day, idx) => (
-                                                                    <td key={idx} className="px-2 py-3 text-center border-r border-slate-50">
-                                                                        {day.isOver ? (
-                                                                            <div className="flex justify-center"><Icons.CheckCircle2 size={18} className="text-green-500" /></div>
-                                                                        ) : (
-                                                                            <div className="flex justify-center"><Icons.AlertCircle size={18} className="text-red-500" /></div>
-                                                                        )}
-                                                                        <div className="text-[10px] text-slate-400 mt-1">{formatCurrency(day.revenue).replace('฿','')}</div>
-                                                                    </td>
-                                                                ))}
-                                                                <td className="px-4 py-3 text-right font-bold text-teal-600">
-                                                                    {formatCurrency(pt.totalRev)}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </main>
+                    <button
+                      onClick={() => loadOverview(selectedYear, selectedMonth)}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+                      title="โหลดข้อมูลรายเดือน (แล้วใช้ช่วงวันที่ด้านซ้ายกรองผลลัพธ์)"
+                    >
+                      โหลด
+                    </button>
+                  </div>
                 </div>
-            );
-        }
 
-        // --- RENDER ---
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<RevenueDashboard />);
-    </script>
+                {/* Display overview range */}
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-sm text-slate-700">
+                      <span className="font-semibold">ช่วงวันที่ที่แสดง:</span>{' '}
+                      <span className="text-slate-600">
+                        {processedOverview.minISO && processedOverview.maxISO
+                          ? `${weekdayTH(processedOverview.minISO)} ${formatDMY(processedOverview.minISO)} - ${weekdayTH(processedOverview.maxISO)} ${formatDMY(processedOverview.maxISO)}`
+                          : `-`}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      เงื่อนไข: {selectedDivision === 'All' ? 'ทุกกอง' : selectedDivision} / {selectedType === 'All' ? 'ทุกประเภท' : selectedType}
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-1">
+                    หมายเหตุ: API โหลดข้อมูลรายเดือน (ปี/เดือน) และใช้ช่วงวันที่ด้านบนกรองผลลัพธ์ภายในเดือน
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <StatCard
+                    title="รายได้รวม (Actual)"
+                    value={formatCurrency(processedOverview.totalRev)}
+                    subValue={`${processedOverview.percent.toFixed(1)}% ของเป้าหมาย`}
+                    trend={processedOverview.percent >= 100 ? 'up' : 'down'}
+                    icon={Icons.DollarSign}
+                    colorClass="bg-blue-500 text-blue-600"
+                  />
+                  <StatCard
+                    title="เป้าหมาย (Target)"
+                    value={formatCurrency(processedOverview.totalTarget)}
+                    subValue="เป้าหมายตามช่วงวันที่"
+                    trend="neutral"
+                    icon={Icons.Target}
+                    colorClass="bg-amber-500 text-amber-600"
+                  />
+                  <StatCard
+                    title="สถานีเกินเป้า"
+                    value={`${processedOverview.overTargetCount} แห่ง`}
+                    subValue="ตามช่วงวันที่"
+                    trend="up"
+                    icon={Icons.CheckCircle2}
+                    colorClass="bg-green-500 text-green-600"
+                  />
+                  <StatCard
+                    title="สถานีต่ำเป้า"
+                    value={`${processedOverview.underTargetCount} แห่ง`}
+                    subValue="ตามช่วงวันที่"
+                    trend="down"
+                    icon={Icons.AlertCircle}
+                    colorClass="bg-red-500 text-red-600"
+                  />
+                </div>
+
+                {/* Daily chart */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <h3 className="text-lg font-bold text-slate-800 mb-1">แนวโน้มรายได้รายวัน (Daily)</h3>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={processedOverview.trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
+                        <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} tickFormatter={(v) => formatCompact(v)} />
+                        <Tooltip formatter={(val) => formatCurrency(val)} />
+                        <Legend />
+                        <Line type="monotone" dataKey="target" name="เป้ารายวัน" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="5 5" />
+                        <Line type="monotone" dataKey="revenue" name="รายได้รายวัน" stroke="#3b82f6" strokeWidth={3} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Station Status - show ALL stations */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-3 flex-wrap">
+                    <h3 className="font-bold text-slate-700">รายการสรุปสถานะรายสถานี (Station Status)</h3>
+                    <div className="text-xs text-slate-500">
+                      แสดงทั้งหมด {processedOverview.stationsArr.length} สถานี (ตามเงื่อนไข/ช่วงวันที่)
+                    </div>
+                  </div>
+
+                  <div className="max-h-[650px] overflow-auto custom-scrollbar">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-slate-50 text-slate-500 sticky top-0 z-10 shadow-sm">
+                        <tr>
+                          <th className="px-6 py-3 font-medium">สถานี</th>
+                          <th className="px-6 py-3 font-medium text-right">เป้าหมาย</th>
+                          <th className="px-6 py-3 font-medium text-right">รายได้จริง</th>
+                          <th className="px-6 py-3 font-medium text-center">สถานะ</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {processedOverview.stationsArr.map((st, i) => {
+                          const isOver = st.revenue >= st.target;
+                          return (
+                            <tr key={i} className="hover:bg-slate-50 transition-colors">
+                              <td className="px-6 py-3 font-medium text-slate-700">{cleanStationName(st.name)}</td>
+                              <td className="px-6 py-3 text-right text-slate-500 font-mono">{formatCurrency(st.target)}</td>
+                              <td className={`px-6 py-3 text-right font-bold font-mono ${isOver ? 'text-green-600' : 'text-red-600'}`}>
+                                {formatCurrency(st.revenue)}
+                              </td>
+                              <td className="px-6 py-3 text-center">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${isOver ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                  {isOver ? 'เกินเป้า' : 'ต่ำเป้า'}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* COMPARE (ตามโค้ดชุดที่สอง + เพิ่มสีเขียวเฉพาะสถานีที่ปัจจุบัน>ก่อนหน้า) */}
+            {activeTab === 'compare' && (
+              <div className="space-y-6">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-800">เปรียบเทียบ (ช่วงปัจจุบัน vs ช่วงก่อนหน้า)</h2>
+                      <p className="text-xs text-slate-500 mt-1">
+                        เลือกสัปดาห์โดยระบุ “วันจันทร์” ระบบจะกำหนดถึง “วันอาทิตย์” อัตโนมัติ (รูปแบบวันที่ dd/mm/yyyy)
+                      </p>
+                    </div>
+
+                    <div className="text-sm text-slate-700">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">ช่วงก่อนหน้า:</span>
+                        <span className="text-slate-600">
+                          {weekdayTH(displayCompareRange.prevStart)} {formatDMY(displayCompareRange.prevStart)} - {weekdayTH(displayCompareRange.prevEnd)} {formatDMY(displayCompareRange.prevEnd)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="font-medium">ช่วงปัจจุบัน:</span>
+                        <span className="text-slate-600">
+                          {weekdayTH(displayCompareRange.curStart)} {formatDMY(displayCompareRange.curStart)} - {weekdayTH(displayCompareRange.curEnd)} {formatDMY(displayCompareRange.curEnd)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-5">
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">ภาค/กอง</label>
+                      <select className="w-full p-2 border rounded-lg text-sm" value={compareDivision} onChange={e=>setCompareDivision(e.target.value)}>
+                        {metaData.divisions.map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">ประเภท</label>
+                      <select className="w-full p-2 border rounded-lg text-sm" value={compareType} onChange={e=>setCompareType(e.target.value)}>
+                        {metaData.types.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">วันเริ่มสัปดาห์ (จันทร์)</label>
+                      <input
+                        type="date"
+                        className="w-full p-2 border rounded-lg text-sm"
+                        value={compareWeekStart}
+                        onChange={(e)=>onChangeCompareStart(e.target.value)}
+                      />
+                      <div className="text-[11px] text-slate-500 mt-1">
+                        ระบบล็อกเป็น “วันจันทร์” และสิ้นสุด “วันอาทิตย์” อัตโนมัติ
+                      </div>
+                    </div>
+
+                    <div className="flex items-end">
+                      <button onClick={loadCompare} className="w-full bg-blue-600 text-white p-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+                        ประมวลผล
+                      </button>
+                    </div>
+                  </div>
+
+                  {compareError && (
+                    <div className="mt-4 bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">
+                      {compareError}
+                    </div>
+                  )}
+                </div>
+
+                {compareRows.length > 0 && (
+                  <div className="space-y-6">
+                    {/* Chart: ALL stations (scroll) */}
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                      <div className="flex items-center justify-between flex-wrap gap-3">
+                        <h3 className="text-lg font-bold text-slate-800">กราฟเปรียบเทียบทุกสถานี</h3>
+                        <div className="text-xs text-slate-500">
+                          แสดงทั้งหมด {compareRows.length} สถานี (เลื่อนดูได้)
+                        </div>
+                      </div>
+
+                      <div className="mt-4 h-[650px] overflow-auto custom-scrollbar border border-slate-100 rounded-lg">
+                        <div style={{ height: compareChartInnerHeight, minWidth: 980 }} className="p-2">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                              data={compareRows}
+                              layout="vertical"
+                              margin={{ top: 10, right: 40, left: 30, bottom: 10 }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                              <XAxis type="number" tickFormatter={(v)=>formatCompact(v)} />
+                              <YAxis
+                                type="category"
+                                dataKey="station"
+                                width={220}
+                                tick={{ fontSize: 12, fill: '#475569' }}
+                                tickFormatter={(v)=>cleanStationName(v)}
+                              />
+                              <Tooltip
+                                formatter={(val)=>formatCurrency(val)}
+                                labelFormatter={(label)=>`สถานี: ${cleanStationName(label)}`}
+                              />
+                              <Legend />
+                              <Bar dataKey="prevRevenue" name="ช่วงก่อนหน้า (รายได้)" fill="#94a3b8" radius={[0, 4, 4, 0]} />
+                              
+                              {/* 
+                                แก้เพิ่ม: สถานีที่ revenue > prevRevenue
+                                ให้แท่ง "ช่วงปัจจุบัน" เป็นสีเขียวเฉพาะแถวนั้น
+                              */}
+                              <Bar dataKey="revenue" name="ช่วงปัจจุบัน (รายได้)" fill="#3b82f6" radius={[0, 4, 4, 0]}>
+                                {compareRows.map((entry, idx) => {
+                                  const cur = Number(entry.revenue || 0);
+                                  const prev = Number(entry.prevRevenue || 0);
+                                  const isUp = cur > prev;
+                                  return (
+                                    <Cell
+                                      key={`cell-rev-${idx}`}
+                                      fill={isUp ? "#16a34a" : "#3b82f6"}
+                                    />
+                                  );
+                                })}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Table */}
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                      <h3 className="text-lg font-bold text-slate-800 mb-4">ตารางเปรียบเทียบ (ค่า + เป็นสีเขียว)</h3>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                          <thead className="bg-slate-50 text-slate-500">
+                            <tr>
+                              <th className="px-4 py-2 font-medium">สถานี</th>
+                              <th className="px-4 py-2 font-medium text-right">ช่วงปัจจุบัน</th>
+                              <th className="px-4 py-2 font-medium text-right">ช่วงก่อนหน้า</th>
+                              <th className="px-4 py-2 font-medium text-right">เปลี่ยนแปลง</th>
+                              <th className="px-4 py-2 font-medium text-right">%เปลี่ยนแปลง</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {compareRows.map((r, idx) => {
+                              const cur = Number(r.revenue || 0);
+                              const prev = Number(r.prevRevenue || 0);
+                              const delta = (typeof r.deltaRevenue !== 'undefined') ? Number(r.deltaRevenue) : (cur - prev);
+                              const pct = (typeof r.pctChange !== 'undefined' && r.pctChange !== null)
+                                ? Number(r.pctChange)
+                                : (prev > 0 ? ((delta/prev)*100) : null);
+
+                              return (
+                                <tr key={idx} className="hover:bg-slate-50">
+                                  <td className="px-4 py-2">{cleanStationName(r.station)}</td>
+                                  <td className="px-4 py-2 text-right font-mono">{formatCurrency(cur)}</td>
+                                  <td className="px-4 py-2 text-right font-mono">{formatCurrency(prev)}</td>
+                                  <td className={`px-4 py-2 text-right font-mono ${deltaClass(delta)}`}>
+                                    {delta > 0 ? `+${formatCurrency(delta)}` : formatCurrency(delta)}
+                                  </td>
+                                  <td className={`px-4 py-2 text-right font-mono ${deltaClass(delta)}`}>
+                                    {pct === null ? '-' : (pct > 0 ? `+${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`)}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <p className="text-xs text-slate-400 mt-3">
+                        หมายเหตุ: ช่วงวันที่ด้านบนจะ “ตรงกับข้อมูล” เมื่อ API ส่ง range กลับมา (curStart/curEnd/prevStart/prevEnd)
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* DEEPDIVE (ตามโค้ดชุดที่สอง) */}
+            {activeTab === 'deepdive' && (
+              <div className="space-y-6">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <div className="flex items-center gap-2 mb-4 text-slate-800">
+                    <Icons.Search className="text-blue-600" />
+                    <h2 className="font-bold text-lg">ค้นหารายละเอียด (Deep Dive)</h2>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">1. เลือกกอง/ภาค</label>
+                      <div className="relative">
+                        <Icons.Building2 className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                        <select
+                          className="w-full pl-9 p-2 border rounded-lg text-sm bg-slate-50 focus:bg-white transition-colors outline-none focus:border-blue-500"
+                          value={searchDivision}
+                          onChange={e => { setSearchDivision(e.target.value); setSearchStation(''); }}
+                        >
+                          <option value="">-- เลือกกอง --</option>
+                          {metaData.divisions.filter(d => d !== 'All').map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">2. เลือกสถานี (1 แห่ง)</label>
+                      <div className="relative">
+                        <Icons.MapPin className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                        <select
+                          className="w-full pl-9 p-2 border rounded-lg text-sm bg-slate-50 focus:bg-white transition-colors outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
+                          value={searchStation}
+                          onChange={e => setSearchStation(e.target.value)}
+                          disabled={!searchDivision}
+                        >
+                          <option value="">{searchDivision ? '-- เลือกสถานี --' : 'กรุณาเลือกกองก่อน'}</option>
+                          {filteredStations.map(s => <option key={s} value={s}>{cleanStationName(s)}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">วันที่เริ่ม</label>
+                      <input type="date" className="w-full p-2 border rounded-lg text-sm" value={searchStart} onChange={e=>setSearchStart(e.target.value)} />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">วันที่สิ้นสุด</label>
+                      <input type="date" className="w-full p-2 border rounded-lg text-sm" value={searchEnd} onChange={e=>setSearchEnd(e.target.value)} />
+                    </div>
+
+                    <div className="lg:col-span-4 mt-2">
+                      <button
+                        onClick={handleSearchDetail}
+                        disabled={!searchStation}
+                        className="w-full bg-indigo-600 text-white p-2.5 rounded-lg font-medium hover:bg-indigo-700 disabled:bg-slate-300 transition-colors shadow-sm flex justify-center items-center gap-2"
+                      >
+                        <Icons.Search size={18} />
+                        ค้นหาข้อมูลเจาะลึก (ข้อมูลจริง)
+                      </button>
+                    </div>
+                  </div>
+
+                  {deepDiveError && (
+                    <div className="mt-4 bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">
+                      {deepDiveError}
+                    </div>
+                  )}
+                </div>
+
+                {deepDiveData && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                      <h3 className="font-bold text-slate-800 mb-1">สัดส่วนรายได้รวม (แยกถูกต้อง)</h3>
+                      <p className="text-xs text-slate-500 mb-4">พนักงาน vs จุดจอด (มีตัวเลขบนแท่ง)</p>
+
+                      <div className="h-[260px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={sourceComparisonData} margin={{ top: 20, right: 10, left: 0, bottom: 10 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="name" tick={{fontSize: 12}} />
+                            <YAxis tickFormatter={(v)=>formatCompact(v)} />
+                            <Tooltip formatter={(val) => formatCurrency(val)} />
+                            <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
+                              {sourceComparisonData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                              ))}
+                              <LabelList dataKey="revenue" position="top" formatter={(v)=>formatCompact(v)} />
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                      <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
+                        <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                          <Icons.CalendarDays size={18} className="text-indigo-500" />
+                          ตารางผลการปฏิบัติงานรายวัน (รายคน/รายจุดจอด)
+                        </h3>
+                        <div className="flex gap-4 text-xs">
+                          <span className="flex items-center gap-1 text-green-700"><Icons.CheckCircle2 size={14} /> เกินเป้า</span>
+                          <span className="flex items-center gap-1 text-red-700"><Icons.AlertCircle size={14} /> มีเป้าแต่ขายไม่ได้/ไม่ถึง</span>
+                          <span className="flex items-center gap-1 text-slate-500"><Icons.MinusCircle size={14} /> ไม่มีเป้า (วันหยุดงาน)</span>
+                        </div>
+                      </div>
+
+                      <div className="overflow-auto custom-scrollbar flex-1">
+                        <table className="w-full text-sm border-collapse">
+                          <thead className="bg-slate-50 text-slate-500 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                              <th className="px-4 py-3 text-left font-medium min-w-[200px] bg-slate-50 border-b">รายชื่อ / จุดจอด</th>
+                              {deepDiveData.days.map(d => {
+                                const dd = isoToLocalDate(d);
+                                return (
+                                  <th key={d} className="px-2 py-3 text-center min-w-[70px] bg-slate-50 border-b">
+                                    <div className="text-xs">{dd.getDate()}</div>
+                                    <div className="text-[10px] uppercase">{dd.toLocaleDateString('en-US', {weekday: 'short'})}</div>
+                                  </th>
+                                );
+                              })}
+                              <th className="px-4 py-3 text-right font-medium min-w-[120px] bg-slate-50 border-b">รวม</th>
+                            </tr>
+                          </thead>
+
+                          <tbody className="divide-y divide-slate-100">
+                            <tr className="bg-slate-50/50">
+                              <td colSpan={deepDiveData.days.length + 2} className="px-4 py-2 text-xs font-bold text-indigo-600 uppercase tracking-wider">
+                                พนักงาน (Employees)
+                              </td>
+                            </tr>
+
+                            {deepDiveData.employees.map((emp, i) => (
+                              <tr key={`e-${i}`} className="hover:bg-indigo-50/30 transition-colors">
+                                <td className="px-4 py-3 font-medium text-slate-700 border-r border-slate-100">
+                                  <div className="flex items-center gap-2">
+                                    <Icons.User size={14} className="text-slate-400" />
+                                    {emp.name}
+                                  </div>
+                                </td>
+
+                                {emp.dailyData.map((day, idx) => (
+                                  <td key={idx} className="px-2 py-3 text-center border-r border-slate-50">
+                                    {day.status === 'off' ? (
+                                      <div className="flex flex-col items-center">
+                                        <Icons.MinusCircle size={18} className="text-slate-400" />
+                                        <div className="text-[10px] text-slate-400 mt-1">หยุด</div>
+                                      </div>
+                                    ) : day.status === 'over' ? (
+                                      <div className="flex flex-col items-center">
+                                        <Icons.CheckCircle2 size={18} className="text-green-600" />
+                                        <div className="text-[10px] text-slate-400 mt-1">{formatCompact(day.revenue)}</div>
+                                      </div>
+                                    ) : (
+                                      <div className="flex flex-col items-center">
+                                        <Icons.AlertCircle size={18} className="text-red-600" />
+                                        <div className="text-[10px] text-slate-400 mt-1">{formatCompact(day.revenue)}</div>
+                                      </div>
+                                    )}
+                                  </td>
+                                ))}
+
+                                <td className="px-4 py-3 text-right font-bold text-indigo-600">
+                                  {formatCurrency(emp.totalRev)}
+                                </td>
+                              </tr>
+                            ))}
+
+                            <tr className="bg-slate-50/50">
+                              <td colSpan={deepDiveData.days.length + 2} className="px-4 py-2 text-xs font-bold text-teal-600 uppercase tracking-wider">
+                                จุดจอด / สถานี (Points)
+                              </td>
+                            </tr>
+
+                            {deepDiveData.points.map((pt, i) => (
+                              <tr key={`p-${i}`} className="hover:bg-teal-50/30 transition-colors">
+                                <td className="px-4 py-3 font-medium text-slate-700 border-r border-slate-100">
+                                  <div className="flex items-center gap-2">
+                                    <Icons.MapPin size={14} className="text-slate-400" />
+                                    {pt.name}
+                                  </div>
+                                </td>
+
+                                {pt.dailyData.map((day, idx) => (
+                                  <td key={idx} className="px-2 py-3 text-center border-r border-slate-50">
+                                    {day.status === 'off' ? (
+                                      <div className="flex flex-col items-center">
+                                        <Icons.MinusCircle size={18} className="text-slate-400" />
+                                        <div className="text-[10px] text-slate-400 mt-1">หยุด</div>
+                                      </div>
+                                    ) : day.status === 'over' ? (
+                                      <div className="flex flex-col items-center">
+                                        <Icons.CheckCircle2 size={18} className="text-green-600" />
+                                        <div className="text-[10px] text-slate-400 mt-1">{formatCompact(day.revenue)}</div>
+                                      </div>
+                                    ) : (
+                                      <div className="flex flex-col items-center">
+                                        <Icons.AlertCircle size={18} className="text-red-600" />
+                                        <div className="text-[10px] text-slate-400 mt-1">{formatCompact(day.revenue)}</div>
+                                      </div>
+                                    )}
+                                  </td>
+                                ))}
+
+                                <td className="px-4 py-3 text-right font-bold text-teal-600">
+                                  {formatCurrency(pt.totalRev)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </main>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<RevenueDashboard />);
+  </script>
 </body>
 </html>
